@@ -1,0 +1,66 @@
+/* components/ManageLinksModal.css */
+
+/* Overlay */
+.ml-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(2, 6, 23, 0.5); /* slate-950/50 */
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 6vh 1rem;
+}
+
+/* Dialog container – matches your dropdown’s visual language */
+.ml-dialog {
+  width: min(720px, 96vw);
+  max-height: 88vh;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.12);
+  display: grid;
+  grid-template-rows: auto auto 1fr; /* header, search, scrollable list */
+  overflow: hidden;
+}
+
+/* Header */
+.ml-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+.ml-close {
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+}
+
+/* Search (reuses your .manage-search class) */
+.ml-search {
+  padding: 0.6rem 0.9rem 0.45rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+/* Scrollable list (reuses your .manage-list + item styles) */
+.ml-list {
+  padding: 0.75rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .ml-dialog {
+    width: 96vw;
+    max-height: 92vh;
+  }
+}

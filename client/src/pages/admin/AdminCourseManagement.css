@@ -1,0 +1,283 @@
+/* AdminCourseManagement.css */
+
+/* ---------- header helper text ---------- */
+.admin-course-management .subtext { color: #6b7280; margin-bottom: 1.5rem; }
+.admin-course-management .small-muted { color: #94a3b8; font-size: 0.75rem; margin-top: 0.25rem; }
+
+/* ---------- stats section ---------- */
+.admin-course-management .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (max-width: 1024px) {
+  .admin-course-management .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .admin-course-management .stats-grid { grid-template-columns: 1fr; }
+}
+
+.admin-course-management .stat-card {
+  border-left: 4px solid transparent;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+}
+.admin-course-management .stat-card .stat-icon {
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+}
+.admin-course-management .stat-card .stat-content { display: grid; gap: 0.125rem; }
+.admin-course-management .stat-card .stat-number { font-size: 1.5rem; font-weight: 700; color: #0f172a; }
+.admin-course-management .stat-card .stat-label { color: #6b7280; font-size: 0.875rem; }
+
+/* accent helpers */
+.admin-course-management .stat-card.accent-purple { border-left-color: #8b5cf6; }
+.admin-course-management .stat-card.accent-blue { border-left-color: #3b82f6; }
+.admin-course-management .stat-card.accent-green { border-left-color: #10b981; }
+.admin-course-management .stat-card.accent-amber { border-left-color: #f59e0b; }
+
+.admin-course-management .stat-card.accent-purple .stat-icon { color: #8b5cf6; background: rgba(139,92,246,.12); }
+.admin-course-management .stat-card.accent-blue .stat-icon { color: #3b82f6; background: rgba(59,130,246,.12); }
+.admin-course-management .stat-card.accent-green .stat-icon { color: #10b981; background: rgba(16,185,129,.12); }
+.admin-course-management .stat-card.accent-amber .stat-icon { color: #f59e0b; background: rgba(245,158,11,.12); }
+
+/* ---------- program + "New" badges ---------- */
+.admin-course-management .badge {
+  display: inline-flex; align-items: center;
+  padding: 0.125rem 0.375rem; border-radius: 9999px;
+  font-size: 0.75rem; font-weight: 600; color: #fff;
+}
+.admin-course-management .badge.program-IT { background: #3b82f6; }
+.admin-course-management .badge.program-BA { background: #10b981; }
+.admin-course-management .badge.program-GE { background: #f59e0b; }
+.admin-course-management .badge.new { background: #10b981; font-weight: 700; font-size: 0.7rem; }
+
+/* ---------- course list cards ---------- */
+.admin-course-management .user-card {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1.25rem; border: 1px solid #e2e8f0; border-radius: 8px;
+  background: #ffffff;
+  transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+  cursor: pointer; margin-bottom: 0.75rem;
+}
+.admin-course-management .user-card:hover { border-color: #d1d5db; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+.admin-course-management .user-card.is-new { border-width: 2px; border-color: #10b981; background: #ecfdf5; }
+
+/* ---------- buttons (base) ---------- */
+.admin-course-management .btn { border: none; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.875rem; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 0.375rem; transition: background-color .2s ease, border-color .2s ease, color .2s ease; }
+.admin-course-management .btn-sm { padding: 0.375rem 0.5rem; font-size: 0.8125rem; }
+.admin-course-management .btn-primary { background: #3b82f6; color: #fff; }
+.admin-course-management .btn-primary:hover { background: #2563eb; }
+.admin-course-management .btn-danger { background: #ef4444; color: #fff; }
+.admin-course-management .btn-danger:hover { background: #dc2626; }
+.admin-course-management .btn-outline-primary { background: transparent; color: #2563eb; border: 1px solid #3b82f6; }
+.admin-course-management .btn-outline-primary:hover { color: #1d4ed8; border-color: #2563eb; }
+.admin-course-management .btn-ghost { background: white; color: #374151; border: 1px solid #d1d5db; }
+.admin-course-management .btn-ghost:hover { background: #f9fafb; border-color: #9ca3af; }
+
+/* --- Unified action buttons: same shape, only color differs --- */
+.admin-course-management .btn-action {
+  border-radius: 8px;
+  height: 36px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
+  font-weight: 600;
+  line-height: 1;
+}
+.admin-course-management .btn-action svg { flex: none; width: 16px; height: 16px; }
+
+/* Edit (blue) */
+.admin-course-management .btn-edit { background: #2563eb; border-color: #2563eb; color: #fff; }
+.admin-course-management .btn-edit:hover { background: #1d4ed8; border-color: #1d4ed8; }
+
+/* Delete (red) */
+.admin-course-management .btn-delete { background: #ef4444; border-color: #ef4444; color: #fff; }
+.admin-course-management .btn-delete:hover { background: #dc2626; border-color: #dc2626; }
+
+/* ---------- FILTER BAR & PANEL (aligned styling) ---------- */
+.admin-course-management .search-filter-bar{
+  display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;
+}
+.admin-course-management .filter-controls{ display:flex; align-items:center; gap:.5rem; }
+
+.admin-course-management .filter-toggle-btn{
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.5rem .75rem; height:38px;
+  background:#fff; color:#374151;
+  border:1px solid #d1d5db; border-radius:8px;
+  cursor:pointer; font-weight:600; font-size:.875rem;
+  transition:background-color .2s ease, border-color .2s ease, color .2s ease;
+}
+.admin-course-management .filter-toggle-btn:hover{ background:#f9fafb; border-color:#9ca3af; }
+.admin-course-management .filter-toggle-btn.active{ background:#eef2ff; border-color:#93c5fd; color:#1e3a8a; }
+.admin-course-management .filter-icon{ width:16px; height:16px; }
+.admin-course-management .filter-badge{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:1.25rem; height:1.25rem; padding:0 .25rem;
+  font-size:.75rem; border-radius:9999px; background:#3b82f6; color:#fff;
+}
+
+/* Panel shell */
+.admin-course-management .filter-panel-collapsible{
+  margin-top: .75rem; background:#fff; border:1px solid #e5e7eb;
+  border-radius:10px; padding:1rem;
+}
+.admin-course-management .filter-panel-header{
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;
+}
+.admin-course-management .filter-panel-header h3{
+  margin:0; font-size:1rem; font-weight:700; color:#0f172a;
+}
+
+/* Grid */
+.admin-course-management .filter-grid{
+  display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:1rem;
+}
+@media (max-width: 1024px){
+  .admin-course-management .filter-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 640px){
+  .admin-course-management .filter-grid,
+  .admin-course-management .filter-grid.mobile{ grid-template-columns:1fr; }
+}
+
+/* Fields */
+.admin-course-management .filter-field{ display:block; }
+.admin-course-management .filter-label{
+  display:block; margin:0 0 .375rem 0; color:#374151; font-weight:600; font-size:.875rem;
+}
+
+/* Selects aligned with app style */
+.admin-course-management .filter-select{
+  width:100%; height:40px;
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  background:#fff;
+  border:1px solid #d1d5db; border-radius:8px;
+  padding:0 .75rem;
+  font-size:.875rem; color:#111827; line-height:1.25;
+  transition:border-color .2s ease, box-shadow .2s ease;
+  background-image: linear-gradient(45deg, transparent 50%, #6b7280 50%), linear-gradient(135deg, #6b7280 50%, transparent 50%);
+  background-position: calc(100% - 18px) 17px, calc(100% - 12px) 17px;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat:no-repeat;
+}
+.admin-course-management .filter-select:hover{ border-color:#cbd5e1; }
+.admin-course-management .filter-select:focus{
+  outline:none; border-color:#3b82f6;
+  box-shadow:0 0 0 3px rgba(59,130,246,.25);
+}
+.admin-course-management .filter-select:disabled{
+  background:#f9fafb; color:#9ca3af; cursor:not-allowed;
+}
+
+/* ---------- pagination ---------- */
+.admin-course-management .pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; padding: 2rem 0; margin-top: 1rem; }
+.admin-course-management .page-btn { padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; color: #374151; cursor: pointer; font-size: 0.875rem; font-weight: 500; min-width: 2.5rem; }
+.admin-course-management .page-btn:hover { border-color: #d1d5db; background: #f9faff; }
+.admin-course-management .page-btn.active { background: #3b82f6; color: #fff; }
+.admin-course-management .page-btn[disabled] { background: #f9fafb; color: #9ca3af; cursor: not-allowed; }
+.admin-course-management .ellipsis { padding: 0.5rem; color: #9ca3af; font-size: 0.875rem; }
+
+/* ---------- modal (scoped) ---------- */
+.admin-course-management .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.admin-course-management .modal-content { background: #fff; border-radius: 12px; padding: 1.5rem; max-width: 400px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+
+/* --- Keep hover highlight, remove motion/lift --- */
+.admin-course-management .user-card { transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+.admin-course-management .user-card,
+.admin-course-management .user-card:hover,
+.admin-course-management .user-card:focus-within { transform: none !important; top: auto !important; left: auto !important; right: auto !important; bottom: auto !important; }
+
+/* --- Loading skeletons (content-only, no animation) --- */
+.admin-course-management .user-card.skeleton { border-color: #e5e7eb; background: #f8fafc; cursor: default; }
+
+.admin-course-management .skeleton-line { display: block; height: 14px; background: #e5e7eb; border-radius: 6px; }
+.admin-course-management .skeleton-line.h-xl { height: 28px; }
+.admin-course-management .skeleton-line.h-lg { height: 20px; }
+.admin-course-management .skeleton-line.h-sm { height: 14px; }
+.admin-course-management .skeleton-line.w-30 { width: 30%; }
+.admin-course-management .skeleton-line.w-40 { width: 40%; }
+.admin-course-management .skeleton-line.w-45 { width: 45%; }
+.admin-course-management .skeleton-line.w-50 { width: 50%; }
+.admin-course-management .skeleton-line.w-65 { width: 65%; }
+
+.admin-course-management .skeleton-button { width: 92px; height: 36px; background: #e5e7eb; border-radius: 6px; }
+.admin-course-management .skeleton-icon { width: 40px; height: 40px; background: #e5e7eb; border-radius: 8px; }
+
+.admin-course-management .stat-card.skeleton { border-left-color: transparent; background: #f8fafc; }
+
+/* simple spacing helpers for skeletons */
+.admin-course-management .mb-1 { margin-bottom: 0.25rem; }
+.admin-course-management .mb-2 { margin-bottom: 0.5rem; }
+
+/* ================== SCROLL CUT FIXES (robust) ================== */
+
+/* Use dynamic viewport height when available */
+:root {
+  --cm-header-h: 64px;
+  --cm-mobile-nav-h: 56px;
+}
+.admin-course-management .page-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+@supports (height: 100dvh) {
+  .admin-course-management .page-wrapper { min-height: 100dvh; }
+}
+
+/* The layout area must allow its children to size and scroll */
+.admin-course-management .main-layout {
+  flex: 1 1 auto;
+  min-height: 0; /* critical so children can shrink within viewport */
+  display: flex;
+}
+
+/* Content column gets the scroll on desktop/tablet */
+.admin-course-management .dashboard-main,
+.admin-course-management .dashboard-main.scrollable-content {
+  flex: 1 1 auto;
+  min-height: 0;        /* prevent overflow clipping */
+  overflow-y: auto;
+}
+
+/* On smaller screens switch to BODY scroll and let content grow */
+@media (max-width: 768px) {
+  .admin-course-management .main-layout {
+    height: auto !important;
+    min-height: 100dvh;
+    overflow: visible !important;
+  }
+
+  .admin-course-management .dashboard-main,
+  .admin-course-management .dashboard-main.scrollable-content {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important; /* allow the document to scroll */
+  }
+
+  /* Ensure inner panels don't re-clamp height */
+  .admin-course-management .user-list-panel,
+  .admin-course-management .user-list-container {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+/* Between 769px and your "mobile" cutoff (<=1152px), keep a safe calc height */
+@media (min-width: 769px) and (max-width: 1152px) {
+  .admin-course-management .dashboard-main.scrollable-content {
+    height: calc(100dvh - var(--cm-header-h) - var(--cm-mobile-nav-h));
+    min-height: 0;
+    overflow-y: auto !important;
+  }
+}
+

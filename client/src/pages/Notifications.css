@@ -1,0 +1,155 @@
+/* header layout */
+.notif-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;            /* centers vertically with button */
+  gap: .75rem;
+}
+
+.notif-controls {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+/* optional small label (keeps layout steady and improves a11y) */
+.notif-filter-label {
+  font-size: .85rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* list + card */
+.notification-list{display:flex;flex-direction:column;gap:.75rem;list-style:none;padding:0;margin:0}
+.notification-card{
+  background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);
+  border:1px solid #e2e8f0;border-radius:12px;padding:1.1rem 1.25rem;
+  box-shadow:0 4px 16px rgba(0,0,0,.08);
+  transition:all .2s ease;position:relative;animation:fadeInUp .4s ease forwards;cursor:pointer;
+  display:flex;flex-direction:column;gap:.5rem;
+}
+.notification-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(30,58,138,.15);border-color:#1d4ed8}
+
+/* TOP ROW: chips on the left, timestamp pinned top-right */
+.notif-top-row{
+  display:flex;
+  justify-content:space-between;   /* pushes timestamp to far right */
+  align-items:flex-start;          /* pins timestamp to the top edge */
+  gap:.75rem;
+  margin-bottom: .5rem;
+}
+.notif-top-left{
+  display:flex;
+  align-items:center;
+  gap:.5rem;                       /* space between 'Unread' and category */
+}
+
+/* chips */
+.notif-chip{
+  font-weight:800;font-size:.72rem;letter-spacing:.2px;
+  background:var(--chip-bg,#eef2f7);color:var(--chip-fg,#334155);
+  padding:3px 10px;border-radius:999px;
+  border:1px solid color-mix(in srgb,var(--chip-fg,#334155) 25%, transparent);
+}
+.notif-chip.unread {
+  background:#ffeeee;
+  color:#d81d1d;
+  border-color:#febfbf;
+}
+
+/* title on its own line below top row */
+.notif-title{
+  color:#1e3a8a;
+  font-size:1rem;
+  min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  margin:0;
+}
+
+/* legacy header row (safe if still present somewhere) */
+.notif-header-row{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
+
+/* timestamp */
+.timestamp{font-size:.75rem;color:#94a3b8;flex-shrink:0;margin-left:1rem}
+
+/* message */
+.notif-message{font-size:.9rem;color:#475569;line-height:1.4;margin:0}
+
+/* custom select wrapper adds a chevron and consistent height */
+.select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 38px;                  /* match button height */
+}
+.select-wrap::after {
+  content: '▾';
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+  font-size: .85rem;
+  color: #64748b;
+  line-height: 1;
+}
+
+/* the select itself */
+.notif-filter {
+  appearance: none;               /* hide native arrow */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #334155;
+  font-size: .9rem;
+  padding: .5rem 2rem .5rem .75rem; /* room for the chevron */
+  height: 38px;
+  line-height: 1;
+  min-width: 150px;               /* comfortable width */
+  cursor: pointer;
+}
+.notif-filter:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.2);
+}
+
+/* button matches height */
+.mark-all {
+  height: 38px;
+  padding: 0 .85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mark-all:hover { filter: brightness(0.98); }
+
+/* empty state */
+.empty-state {
+  text-align: center;
+  padding: 2.25rem 1rem;
+  border: 1px dashed #e2e8f0;
+  border-radius: 12px;
+  background: #fafcff;
+}
+.empty-emoji { font-size: 2rem; margin-bottom: .5rem; }
+.empty-title { margin: 0 0 .25rem; color: #1e3a8a; font-size: 1.05rem; font-weight: 800; }
+.empty-sub { margin: 0; color: #64748b; font-size: .9rem; }
+
+/* animation */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* mobile */
+@media (max-width:768px){
+  .notification-card{padding:1rem;margin-left:-2rem;margin-right:-2rem}
+  .notif-title{font-size:.95rem}
+  .notif-message{font-size:.85rem}
+  .timestamp{font-size:.7rem}
+  .notif-header-top { flex-direction: column; align-items: stretch; }
+  .notif-controls { margin: 0rem -1.8rem; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem;}
+  .select-wrap, .notif-filter { width: 100%; }
+  .mark-all { width: auto; align-self: flex-end; }
+}

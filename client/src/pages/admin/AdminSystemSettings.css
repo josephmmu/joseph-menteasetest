@@ -1,0 +1,292 @@
+/* ============== Admin System Settings (with animations) ============== */
+.admin-academic-terms {
+  --at-accent: #1d4ed8;
+  --at-accentRing: rgba(29, 78, 216, 0.25);
+  --at-bg: #ffffff;
+  --at-bgSoft: #f8fafc;
+  --at-border: #e5e7eb;
+  --at-muted: #64748b;
+  --at-mutedLight: #94a3b8;
+  --at-text: #0f172a;
+  --at-radius: 12px;
+  --at-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --at-shadowHover: 0 8px 24px rgba(30, 58, 138, 0.15);
+  --mobile-nav-height: 64px;
+
+  /* match header gutters on mobile like AdminDashboard */
+  --header-mobile-gutter: 1rem;
+}
+
+/* Keep bottom content visible above fixed MobileNav */
+.admin-academic-terms .dashboard-main,
+.admin-academic-terms .dashboard-main.scrollable-content {
+  padding-bottom: clamp(5rem, 8vh, 8rem);
+}
+
+/* ============== Stats ============== */
+.admin-academic-terms .stats-section { margin-bottom: 1.25rem; }
+
+.admin-academic-terms .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.admin-academic-terms .stat-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--at-border);
+  border-radius: var(--at-radius);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 10px rgba(12,14,23,0.05);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+
+  /* Animation */
+  animation: fadeInUp .6s ease both;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+.admin-academic-terms .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--at-shadowHover);
+  border-color: #dbeafe;
+}
+
+.admin-academic-terms .stat-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  display:flex; align-items:center; justify-content:center;
+  color:#1d4ed8; background:rgba(29,78,216,.12);
+  flex-shrink:0;
+}
+.admin-academic-terms .stat-number {
+  font-size: 2rem; font-weight: 800; color: var(--at-text); line-height: 1;
+}
+.admin-academic-terms .stat-label {
+  font-size: .875rem; color: var(--at-muted); font-weight: 600;
+}
+.stats-grid .stat-card:nth-child(1){animation-delay:0ms;}
+.stats-grid .stat-card:nth-child(2){animation-delay:100ms;}
+.stats-grid .stat-card:nth-child(3){animation-delay:200ms;}
+
+/* ============== Search / Add bar ============== */
+.admin-academic-terms .search-filter-bar {
+  display:flex; gap:12px; align-items:center; justify-content:space-between;
+  margin: 10px 0 12px;
+  animation: fadeInUp .6s ease both; animation-delay: 140ms;
+}
+.admin-academic-terms .search-container { flex:1; }
+.admin-academic-terms .search-input-wrapper {
+  display:flex; align-items:center; gap:8px;
+  background:#fff; border:1px solid var(--at-border);
+  border-radius: 10px; padding: 10px 12px;
+}
+.admin-academic-terms .search-icon { color:#64748b; opacity:.9; }
+.admin-academic-terms .search-input {
+  border:0; outline:0; width:100%; background:transparent; color:#0f172a;
+}
+.admin-academic-terms .add-term-btn {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 14px; border-radius:10px; border:1px solid #dbeafe;
+  background:#1d4ed8; color:#fff; font-weight:700;
+  transition: filter .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.admin-academic-terms .add-term-btn:hover { filter: brightness(1.02); box-shadow: var(--at-shadow); transform: translateY(-1px); }
+
+/* ============== Terms list ============== */
+.admin-academic-terms .terms-list-panel {
+  animation: fadeInUp .6s ease both; animation-delay: 180ms;
+}
+.admin-academic-terms .terms-list { display:flex; flex-direction:column; gap:10px; }
+
+.admin-academic-terms .term-card {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap: 10px;
+  background: linear-gradient(135deg, #ffffff 0%, #fbfdff 100%);
+  border: 1px solid var(--at-border);
+  border-radius: 12px;
+  padding: 14px 14px;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  box-shadow: 0 2px 10px rgba(12,14,23,0.05);
+
+  animation: fadeInUp .6s ease both;
+  will-change: opacity, transform;
+}
+.admin-academic-terms .term-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--at-shadowHover);
+  border-color:#dbeafe;
+}
+.admin-academic-terms .terms-list .term-card:nth-child(1){animation-delay:0ms;}
+.admin-academic-terms .terms-list .term-card:nth-child(2){animation-delay:60ms;}
+.admin-academic-terms .terms-list .term-card:nth-child(3){animation-delay:120ms;}
+.admin-academic-terms .terms-list .term-card:nth-child(4){animation-delay:180ms;}
+.admin-academic-terms .terms-list .term-card:nth-child(5){animation-delay:240ms;}
+
+.admin-academic-terms .term-info { flex:1; }
+.admin-academic-terms .term-header { display:flex; gap:.5rem; align-items:center; margin-bottom:.25rem; }
+.admin-academic-terms .term-title { font-weight:800; color:#0f172a; }
+.admin-academic-terms .term-dates { color: var(--at-muted); font-size:.9rem; }
+
+.admin-academic-terms .status-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:4px 10px; border-radius:999px; font-weight:800; font-size:.75rem;
+  border: 1px solid rgba(15,23,42,.06); color:#0f172a; background: rgba(15,23,42,.04);
+}
+.status-badge.active { color:#065f46; background:#ecfdf5; border-color:#a7f3d0; }
+
+.admin-academic-terms .term-actions { display:flex; gap:.5rem; align-items:center; }
+.btn-set-active {
+  border:1px solid #d1fae5; background:#10b981; color:white; font-weight:800;
+  padding:8px 12px; border-radius:10px; transition: transform .15s ease, box-shadow .15s ease;
+}
+.btn-set-active:hover { transform: translateY(-1px); box-shadow: var(--at-shadow); }
+.btn-icon {
+  width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--at-border); background:#fff; color:#0f172a; transition: background .15s ease, transform .15s ease;
+}
+.btn-icon:hover { background:#f8fafc; transform: translateY(-1px); }
+.btn-icon-delete { border-color:#fee2e2; color:#b91c1c; background:#fff5f5; }
+.btn-icon-delete:hover { background:#fee2e2; }
+
+/* ============== Modal ============== */
+.modal-overlay {
+  position:fixed; inset:0; background: rgba(15,23,42,.4);
+  display:flex; align-items:center; justify-content:center;
+  z-index: 1000;
+  animation: overlayIn .18s ease both;
+}
+.modal-content {
+  width: min(720px, 92vw);
+  background:#fff; border-radius: 14px; border:1px solid var(--at-border);
+  padding: 16px;
+  box-shadow: 0 20px 60px rgba(2,6,23,.25);
+  animation: modalIn .22s ease both;
+}
+.modal-header { display:flex; align-items:center; gap:.75rem; margin-bottom:.75rem; }
+.modal-icon {
+  width:48px; height:48px; border-radius:50%; background:#eff6ff; color:#1d4ed8;
+  display:flex; align-items:center; justify-content:center;
+}
+.modal-title { margin:0; font-size:1.125rem; font-weight:800; color:#0f172a; }
+
+.form-group { margin: .75rem 0; }
+.form-label { display:block; font-weight:700; font-size:.9rem; color:#0f172a; margin-bottom:.35rem; }
+.form-select, .form-input {
+  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--at-border); outline:0;
+  background:#fff; color:#0f172a;
+}
+.date-inputs { display:grid; grid-template-columns: 1fr 1fr; gap:.75rem; }
+
+.form-group-inline { display:flex; align-items:center; gap:.5rem; margin:.5rem 0 1rem; }
+.form-toggle { width:18px; height:18px; }
+
+.modal-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:1rem; }
+.btn-cancel, .btn-save, .btn-delete {
+  padding:10px 14px; border-radius:10px; font-weight:800; border:1px solid transparent;
+}
+.btn-cancel { background:#f8fafc; border-color:var(--at-border); color:#0f172a; }
+.btn-save { background:#1d4ed8; color:#fff; }
+.btn-delete { background:#ef4444; color:#fff; }
+
+/* Toast styles are centralized in AdminToast.css. */
+
+/* ============== Skeletons (loading) ============== */
+.skeleton {
+  position: relative; overflow: hidden; border-radius: 12px;
+  background: #fff; border:1px solid var(--at-border);
+}
+.skeleton::after {
+  content:""; position:absolute; inset:0;
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.04), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.2s infinite;
+}
+.skeleton-icon { width:48px; height:48px; border-radius:50%; background:#f1f5f9; }
+.skeleton-line { display:block; border-radius:8px; background:#eef2f7; }
+.skeleton-button, .skeleton-pill {
+  height: 32px; border-radius:10px; background:#eef2f7; border:1px solid var(--at-border);
+}
+
+/* skeleton utility sizes */
+.h-xl{height:28px;} .h-lg{height:18px;} .h-sm{height:12px;}
+.w-40{width:40%;} .w-25{width:25%;} .w-70{width:70%;} .w-50{width:50%;} .w-30{width:30%;}
+.mb-2{margin-bottom:.5rem;} .mb-1{margin-bottom:.25rem;}
+
+/* ============== Animations ============== */
+@keyframes fadeInUp {
+  from { opacity:0; transform: translateY(18px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+@keyframes overlayIn {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+@keyframes modalIn {
+  from { opacity:0; transform: translateY(8px) scale(.98); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%);  }
+}
+@keyframes slideIn {
+  from { opacity:0; transform: translateY(12px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+/* Respect user motion preferences (scoped) */
+@media (prefers-reduced-motion: reduce) {
+  .admin-academic-terms .stat-card,
+  .admin-academic-terms .search-filter-bar,
+  .admin-academic-terms .terms-list-panel,
+  .admin-academic-terms .term-card,
+  .admin-academic-terms .modal-overlay,
+  .admin-academic-terms .modal-content {
+    animation: none !important;
+    transform: none !important;
+  }
+  .admin-academic-terms .skeleton::after { animation: none !important; }
+}
+
+/* ============== Responsive (align with AdminDashboard) ============== */
+@media (max-width: 768px) {
+  /* Use same left/right gutters as the header */
+  .admin-academic-terms .dashboard-main.scrollable-content {
+    padding-left: var(--header-mobile-gutter) !important;
+    padding-right: var(--header-mobile-gutter) !important;
+  }
+
+  /* Keep vertical rhythm without reintroducing wide side padding */
+  .admin-academic-terms .dashboard-main {
+    padding-top: 1.5rem;
+    padding-bottom: calc(1.75rem + var(--mobile-nav-height) + env(safe-area-inset-bottom));
+    padding-left: 0;  /* gutters handled by .scrollable-content */
+    padding-right: 0; /* gutters handled by .scrollable-content */
+  }
+
+  /* Ensure the H2 respects the gutters and matches AdminDashboard style */
+  .admin-academic-terms .section > h2 {
+    margin-left: 0;
+    margin-right: 0;
+    color: #1e3a8a;
+    font-weight: 700;
+    position: relative;
+    padding-bottom: 0.5rem;
+  }
+  .admin-academic-terms .section > h2::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    border-radius: 2px;
+  }
+
+  /* Forms */
+  .date-inputs { grid-template-columns: 1fr; }
+}

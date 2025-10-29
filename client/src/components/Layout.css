@@ -1,0 +1,228 @@
+:root {
+  --sidebar-width: 217px;
+  --header-height: 50px;
+  --mobile-nav-height: 64px; /* used for bottom padding on mobile */
+}
+
+/* ===== Header ===== */
+.header-bar {
+  background: linear-gradient(90deg, #f0f7ff 5%, #2e57c8 30%, #1e3a8a 80%);
+  border-bottom: 3px solid #dc2626;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+}
+
+.header-left { display: flex; align-items: center; gap: 1rem; }
+.header-logo { height: 45px; width: auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,.1)); }
+.full-logo { display: block; }
+.icon-logo { display: none; height: 40px; width: auto; }
+
+.header-right { display: flex; align-items: center; gap: 1.2rem; }
+
+.term {
+  font-weight: 500; color: #fff; background: rgba(255,255,255,.15);
+  padding: .6rem 1.2rem; border-radius: 25px; font-size: .85rem;
+  backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.2);
+}
+
+.notif-btn,
+.user-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; color: #fff; border: 1px solid rgba(255,255,255,.2);
+  cursor: pointer; transition: all .2s ease; backdrop-filter: blur(10px);
+}
+.notif-btn:hover, .user-icon:hover { background: rgba(255,255,255,.25); transform: scale(1.05); }
+.notif-icon-img { width: 20px; height: 20px; object-fit: contain; }
+
+/* ===== Sidebar ===== */
+.sidebar {
+  box-sizing: border-box;
+  width: var(--sidebar-width);
+  padding: 1rem;
+  background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%);
+  border-right: 1px solid #e2e8f0;
+  box-shadow: 2px 0 8px rgba(0,0,0,.05);
+}
+
+.sidebar nav ul { list-style: none; padding: 0; margin-top: 3rem; width: 100%; }
+
+.sidebar nav ul li {
+  padding: .9rem 1.2rem; cursor: pointer; color: #475569; font-size: .95rem;
+  font-weight: 500; border-radius: 8px; margin-bottom: .3rem; transition: all .3s ease;
+  border-left: 3px solid transparent; position: relative;
+}
+
+.sidebar nav ul li.active {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+  color: #fff; border-left: 3px solid #dc2626;
+  box-shadow: 0 2px 8px rgba(30,58,138,.2);
+}
+
+.sidebar nav ul li:not(.active):hover {
+  background-color: #e2e8f0; color: #1e3a8a;
+  border-left: 3px solid #1d4ed8; transform: translateX(2px);
+}
+
+/* ===== Mobile Nav ===== */
+.mobile-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; justify-content: space-around;
+  background: rgba(255,255,255,.75); backdrop-filter: blur(10px);
+  border-top: 1px solid #e2e8f0; padding: .75rem .5rem; z-index: 999;
+}
+
+.mobile-nav-item {
+  background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #1e3a8a;
+  transition: transform .2s; display: flex; flex-direction: column; align-items: center; gap: .2rem; font-weight: 500;
+}
+.mobile-nav-label { font-size: .75rem; }
+.mobile-nav-item:hover { transform: scale(1.05); }
+.mobile-nav-item.active span[role="img"] {
+  text-shadow: 0 0 2rem rgba(150,184,255,.6), 0 0 1rem rgba(2,91,151,.607);
+}
+
+/* ===== Layout Skeleton ===== */
+.student-dashboard { min-height: 100vh; display: flex; flex-direction: column; }
+.main-layout { display: flex; min-height: 0; }
+.dashboard-main { flex: 1 1 auto; min-width: 0; }
+
+/* ===== Scrollable Content (single source of truth) ===== */
+html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Default desktop spacing */
+.scrollable-content {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 3rem 0 1rem;
+  padding: 3rem 3rem 2rem;  /* bottom padding so cards breathe */
+}
+
+/* When the bottom MobileNav is present, ensure we can scroll past it */
+body.has-mobile-nav .scrollable-content {
+  /* Add nav height + safe area + small extra so last element isn't tight */
+  padding-bottom: calc(var(--mobile-nav-height) + max(20px, env(safe-area-inset-bottom)));
+}
+
+/* If header overlaps on mobile, push the content down a bit */
+@media (max-width: 1152px) {
+  .full-logo { display: none; }
+  .icon-logo { display: block; }
+  .header-bar { padding: .8rem 1rem; gap: 1rem; }
+
+  .scrollable-content {
+    margin-left: 0 !important;
+    margin-top: var(--header-height);
+    padding: 1rem 1rem calc(var(--mobile-nav-height) + max(24px, env(safe-area-inset-bottom)));
+  }
+}
+
+/* ===== Fixed/Sticky helpers (if your Header uses them) ===== */
+.fixed-header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; }
+.fixed-sidebar { position: sticky; top: var(--header-height); height: calc(100vh - var(--header-height)); overflow: auto; }
+
+/* ===== Menus / Dropdowns ===== */
+.profile-dropdown { position: relative; }
+.dropdown-menu {
+  position: absolute; right: 0; top: 3rem; background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.15); padding: .5rem; z-index: 10; min-width: 140px; backdrop-filter: blur(10px);
+}
+.dropdown-menu button,
+.dropdown-item {
+  width: 100%; text-align: left; padding: .7rem 1rem; border: none; background: none; font-size: .9rem;
+  cursor: pointer; border-radius: 6px; color: #475569; font-weight: 500; transition: all .2s ease;
+}
+.dropdown-menu button:hover,
+.dropdown-item:hover { background: linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 100%); color: #fff; }
+.dropdown-sep { height: 1px; background: #e5e7eb; margin: .15rem 0; }
+
+.notif-wrapper { position: relative; }
+.notif-dropdown {
+  position: absolute; top: 2.6rem; right: 0; width: 20rem; background: #fff;
+  border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 10px 30px rgba(30,58,138,.1);
+  z-index: 999; animation: fadeInUp .3s ease; overflow: hidden;
+}
+.notif-header {
+  padding: 1rem; background: #133593; color: #fff; font-weight: 600;
+  display: flex; justify-content: space-between; align-items: center; font-size: .95rem;
+}
+.notif-header button { background: none; color: #e0e7ff; font-size: .85rem; border: none; cursor: pointer; text-decoration: underline; }
+.notif-items { list-style: none; margin: 0; padding: 0; }
+.notif-entry {
+  position: relative; padding: .9rem 1rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background-color .2s ease;
+}
+.notif-entry:hover { background-color: #f1f5f9; }
+.notif-entry.unread { background-color: #edf2ff; font-weight: 700; }
+.notif-entry.unread:hover { background-color: #e6edff; }
+.notif-message { font-size: .9rem; color: #334155; margin-bottom: .2rem; }
+.notif-meta { display: flex; justify-content: space-between; align-items: center; }
+.notif-time { font-size: .75rem; color: #94a3b8; }
+
+/* Role Switcher */
+.role-switcher { margin-right: 1rem; }
+.role-select {
+  background: linear-gradient(135deg,#f8fafc 0%,#e2e8f0 100%);
+  border: 1px solid #cbd5e1; border-radius: 8px; padding: .5rem .75rem; font-size: .85rem; font-weight: 600; color: #1e3a8a;
+  cursor: pointer; transition: all .2s ease; min-width: 140px;
+}
+.role-select:hover { background: linear-gradient(135deg,#e2e8f0 0%,#cbd5e1 100%); border-color: #94a3b8; }
+.role-select:focus { outline: none; border-color: #1d4ed8; box-shadow: 0 0 0 3px rgba(29,78,216,.1); }
+
+.role-indicator {
+  color: #1e3a8a !important; font-weight: 600 !important;
+  border-bottom: 1px solid #e2e8f0; padding-bottom: .5rem !important; margin-bottom: .5rem !important;
+}
+
+/* Extra tweaks */
+@media (max-width: 768px) {
+  .header-right { gap: .1rem; }
+  .term { display: block; background: none; border: none; }
+  .mobile-nav-label { font-size: .65rem; }
+}
+
+/* Safe area padding for the nav itself */
+@supports (padding: max(0px)) {
+  .mobile-nav {
+    padding-bottom: max(.75rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Anim */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===================== */
+/*  EXACT REQUESTED FIX  */
+/* ===================== */
+
+/* 1152px range (small laptops/tablets): more top + left/right padding */
+@media (max-width: 1152px) {
+  .scrollable-content {
+    padding-top: 2rem !important;   /* more top space */
+    padding-left: 3rem !important;   /* wider left */
+    padding-right: 3rem !important;  /* wider right */
+    /* keep existing bottom padding */
+  }
+}
+
+/* 768px and below (phones): no cut + safe bottom above MobileNav */
+@media (max-width: 768px) {
+  .scrollable-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    margin-top: calc(var(--header-height) + 1rem) !important;
+    padding-left: 3.5rem !important;
+    padding-right: 3.5rem !important;
+    padding-bottom: calc(var(--mobile-nav-height) + max(1rem, env(safe-area-inset-bottom))) !important;
+    min-height: calc(100dvh - var(--header-height)) !important;
+  }
+}

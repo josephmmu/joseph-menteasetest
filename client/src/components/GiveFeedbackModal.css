@@ -1,0 +1,121 @@
+/* Reuses existing .modal-overlay & .btn styles */
+
+.feedback-modal {
+  max-width: 520px;
+  padding: 1.75rem;
+  position: relative;
+}
+
+/* Mobile: full screen + scrollable */
+@media (max-width: 520px) {
+  .modal-overlay { align-items: center; }
+    .feedback-modal {
+        width: 100%;
+        max-height: 90vh; /* leaves some breathing space */
+        height: auto; /* let content decide height */
+        overflow-y: auto; /* scroll only if taller than viewport */
+        border-radius: 0.5rem;
+    }
+.gf-title {
+    padding-right: 3rem;
+  }
+}
+
+.gf-close {
+  position: absolute;
+  top: 10px; right: 12px;
+  background: none; border: 0; font-size: 1.6rem; line-height: 1;
+  color: #0f172a; cursor: pointer;
+}
+
+.gf-title {
+  margin: 0 2rem 0.25rem 0; /* leave space for the close icon */
+  color: #1e3a8a;
+  font-weight: 800;
+}
+
+.gf-sub, .gf-date {
+  margin: 0.15rem 0;
+  color: #334155;
+  text-align: left;
+}
+
+/* Notes field */
+.label {
+  display: block;
+  font-weight: 600;
+  color: #1e3a8a;
+  font-size: 1rem;
+  margin-top: 1rem;
+}
+.gf-notes {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  resize: vertical;
+  transition: border-color .15s ease, box-shadow .15s ease;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+.gf-notes:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29,78,216,.15);
+}
+
+.gf-notes::placeholder {
+  font-family: inherit;  
+  color: #94a3b8; 
+  opacity: 1;     
+}
+
+/* Anonymous */
+.gf-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  color: #334155;
+  font-size: 0.95rem;
+}
+.gf-check input { width: 1rem; height: 1rem; }
+
+.confirm-modal {
+  max-width: 480px;
+  padding: 1.25rem 1.25rem 1rem;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow:
+    0 10px 15px -3px rgba(0,0,0,.1),
+    0 4px 6px -2px rgba(0,0,0,.05);
+}
+
+.confirm-title {
+  margin: 0.5rem 0 2rem 0;
+  font-size: 1.3rem;     
+  font-weight: 600;
+  color: #1e3a8a;         
+}
+
+.confirm-text {
+  margin: 0.5rem 0;
+  color: #475569;          
+  font-size: 0.95rem;
+}
+
+.confirm-list {
+  margin: 1rem 0 1.5rem 1.25rem;
+  padding: 0;
+  color: #475569;
+  font-size: 0.95rem;
+  list-style: disc;
+}
+
+.confirm-list li + li {
+  margin-top: 0.5rem;
+}
+
+.confirm-modal .modal-actions {
+  margin-top: 2rem;
+}

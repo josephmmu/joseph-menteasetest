@@ -1,0 +1,385 @@
+/* ================= Admin Dashboard Scoped Styles ================= */
+.admin-user-control {
+  --uc-accent: #1d4ed8;
+  --uc-accentRing: rgba(29, 78, 216, 0.25);
+  --uc-bg: #ffffff;
+  --uc-bgSoft: #f8fafc;
+  --uc-border: #e2e8f0;
+  --uc-muted: #6b7280;
+  --uc-mutedLight: #9ca3af;
+  --uc-text: #0f172a;
+  --uc-radius: 12px;
+  --uc-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --uc-shadowHover: 0 8px 24px rgba(30, 58, 138, 0.15);
+
+  /* Match header horizontal padding on mobile (Header @<=1152px uses ~1rem) */
+  --header-mobile-gutter: 1rem;
+}
+
+/* Page spacing */
+.admin-user-control .dashboard-main .section > h2 {
+  margin-bottom: 1rem;
+}
+
+/* User Statistics Section */
+.admin-user-control .user-stats-section {
+  margin-bottom: 2rem;
+}
+
+.admin-user-control .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-user-control .stat-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--uc-border);
+  border-radius: var(--uc-radius);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-left: 4px solid #e5e7eb;
+
+  /* enter animation (NO FLICKER) */
+  animation: fadeInUp 0.6s ease both;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.admin-user-control .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--uc-shadowHover);
+}
+
+.admin-user-control .stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-user-control .stat-content { flex: 1; }
+
+.admin-user-control .stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--uc-text);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.admin-user-control .stat-label {
+  font-size: 0.875rem;
+  color: var(--uc-muted);
+  font-weight: 500;
+}
+
+.admin-user-control .refresh-btn:hover {
+  background: var(--uc-bgSoft) !important;
+  border-color: var(--uc-accent) !important;
+  color: var(--uc-accent) !important;
+}
+
+/* Admin Controls Section */
+.admin-user-control .admin-controls-section h3 { margin-top: 24px; }
+
+.admin-user-control .controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.admin-user-control .control-card {
+  display: block;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--uc-border);
+  border-radius: var(--uc-radius);
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+
+  /* enter animation (NO FLICKER) */
+  animation: fadeInUp 0.6s ease both;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.admin-user-control .control-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--uc-shadowHover);
+}
+
+.admin-user-control .control-card-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-user-control .control-icon { font-size: 32px; }
+
+.admin-user-control .control-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--uc-text);
+}
+
+.admin-user-control .control-desc {
+  color: var(--uc-muted);
+  font-size: 0.9rem;
+}
+
+.admin-user-control .control-cta {
+  margin-top: auto;
+  align-self: flex-start;
+  background: var(--uc-accent);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+/* ============== Breakdown Section (improved cards) ============== */
+.admin-user-control .breakdown-section h3 { color: var(--uc-text); }
+
+.admin-user-control .admin-breakdown-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.admin-user-control .breakdown-card {
+  flex: 1 1 0;
+  padding: 16px 16px 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 14px;
+  border: 1px solid #eef2ff;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  position: relative;
+  box-shadow: 0 2px 10px rgba(12, 14, 23, 0.05);
+
+  /* enter animation (NO FLICKER) */
+  animation: fadeInUp 0.6s ease both;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.admin-user-control .breakdown-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--uc-shadowHover);
+  border-color: var(--uc-border);
+}
+
+/* Left accents per card */
+.breakdown-accent-purple { border-left: 4px solid #8b5cf6; }
+.breakdown-accent-blue   { border-left: 4px solid #3b82f6; }
+.breakdown-accent-green  { border-left: 4px solid #10b981; }
+
+.breakdown-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 10px;
+}
+
+.head-left { display: flex; align-items: center; gap: 8px; }
+
+.head-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+.breakdown-accent-purple .head-dot { background: #8b5cf6; }
+.breakdown-accent-blue   .head-dot { background: #3b82f6; }
+.breakdown-accent-green  .head-dot { background: #10b981; }
+
+.breakdown-title {
+  font-weight: 700;
+  color: var(--uc-text);
+  font-size: 0.95rem;
+}
+
+.head-right .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--uc-text);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.breakdown-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.breakdown-item {
+  padding: 6px 0 4px;
+  border-bottom: 1px dashed rgba(15, 23, 42, 0.06);
+}
+.breakdown-item:last-child { border-bottom: none; }
+
+.breakdown-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.breakdown-key {
+  color: var(--uc-muted);
+  font-weight: 600;
+  font-size: 0.92rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breakdown-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: var(--uc-text);
+  font-size: 0.92rem;
+}
+.breakdown-val .pct {
+  font-weight: 700;
+  color: var(--uc-muted);
+  font-size: 0.78rem;
+  background: rgba(15, 23, 42, 0.05);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+/* Progress bars */
+.progress {
+  height: 8px;
+  width: 100%;
+  background: rgba(15, 23, 42, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  transform-origin: left center;
+  transition: width 0.4s ease;
+  background: linear-gradient(90deg, #60a5fa, #93c5fd);
+}
+.breakdown-accent-purple .progress-bar {
+  background: linear-gradient(90deg, #a78bfa, #c4b5fd);
+}
+.breakdown-accent-green .progress-bar {
+  background: linear-gradient(90deg, #34d399, #6ee7b7);
+}
+
+/* Muted text */
+.admin-user-control .muted {
+  color: var(--uc-mutedLight);
+  font-style: italic;
+}
+
+/* ===================== Animation (match student/mentor) ===================== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Staggered delays (fill-mode:both prevents pre-delay flash) */
+.stats-grid .stat-card:nth-child(1) { animation-delay: 0ms; }
+.stats-grid .stat-card:nth-child(2) { animation-delay: 80ms; }
+.stats-grid .stat-card:nth-child(3) { animation-delay: 160ms; }
+.admin-breakdown-row .breakdown-card:nth-child(1) { animation-delay: 0ms; }
+.admin-breakdown-row .breakdown-card:nth-child(2) { animation-delay: 120ms; }
+.admin-breakdown-row .breakdown-card:nth-child(3) { animation-delay: 240ms; }
+.controls-grid .control-card:nth-child(1) { animation-delay: 0ms; }
+.controls-grid .control-card:nth-child(2) { animation-delay: 80ms; }
+.controls-grid .control-card:nth-child(3) { animation-delay: 160ms; }
+
+/* Respect user motion settings */
+@media (prefers-reduced-motion: reduce) {
+  .stat-card,
+  .breakdown-card,
+  .control-card {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* ===================== Responsive ===================== */
+@media (max-width: 1152px) {
+  .admin-user-control .controls-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile: match header gutters and avoid overflow */
+@media (max-width: 768px) {
+  /* Use the same left/right padding as header */
+  .admin-user-control .dashboard-main.scrollable-content {
+    padding-left: var(--header-mobile-gutter) !important;
+    padding-right: var(--header-mobile-gutter) !important;
+  }
+
+  /* Keep vertical rhythm without reintroducing wide side padding */
+  .admin-user-control .dashboard-main {
+    padding-top: 1.5rem;
+    padding-bottom: 4rem;
+    padding-left: 0;  /* let .scrollable-content control gutters */
+    padding-right: 0; /* let .scrollable-content control gutters */
+  }
+
+  /* Ensure the H2 respects the gutters (student/mentor use wider margins) */
+  .admin-user-control .section > h2 {
+    margin-left: 0;
+    margin-right: 0;
+    color: #1e3a8a;
+    font-weight: 700;
+    position: relative;
+    padding-bottom: 0.5rem;
+  }
+  .admin-user-control .section > h2::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    border-radius: 2px;
+  }
+
+  .admin-user-control .admin-breakdown-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .admin-user-control .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .admin-user-control .controls-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}

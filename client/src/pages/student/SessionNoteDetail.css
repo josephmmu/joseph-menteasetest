@@ -1,0 +1,379 @@
+/* ===== Tokens ===== */
+:root {
+  --bg: #f7f8fa;
+  --ink: #0f172a;
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #1e3a8a;
+  --line-2: #e2e8f0;
+}
+
+/* Page header */
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 2rem;
+}
+
+/* Center loading text vertically & horizontally */
+.section.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 70vh;
+  text-align: center;
+}
+
+.section.loading p {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 600;
+  padding: 6px 14px;
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+  margin-top: 1rem;
+}
+.back-link::before {
+  content: "←";
+  font-size: 14px;
+}
+.back-link:hover {
+  background: #1d4ed8;
+  color: #fff;
+}
+.back-link:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent), white 65%);
+  outline-offset: 2px;
+}
+
+/* Meta info container with autosave at top right */
+.note-meta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 1.25rem;
+}
+
+.note-meta-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* right align status under buttons */
+  gap: 1.09rem; /* space between buttons row and status */
+}
+
+.note-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Meta info stacked */
+.note-compact-meta {
+  font: 300 1rem/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Arial, sans-serif;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap; /* keeps it neat on narrow widths */
+}
+
+.note-title {
+  font-size: 1.1rem;
+  color: var(--accent);
+  font-weight: 800;
+}
+.note-meta-muted {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* Autosave status (hidden when idle) */
+.autosave-status {
+  display: none;
+  font-size: 0.8rem;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid #e6e9ee;
+  background: #f9fafb;
+  color: #374151;
+  white-space: nowrap;
+}
+.autosave-status.saving,
+.autosave-status.saved,
+.autosave-status.error {
+  display: inline-block;
+}
+.autosave-status.saving {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #9a3412;
+}
+.autosave-status.saved {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+.autosave-status.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+/* Divider line */
+.note-divider {
+  height: 1px;
+  background: #cfd5df;
+  margin-bottom: 16px;
+}
+
+/* Body */
+.note-scroll {
+  padding: 0;
+}
+
+/* Sections */
+.note-block {
+  margin-bottom: 20px;
+}
+.note-block:last-of-type {
+  margin-bottom: 8px;
+}
+.note-block h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* Textareas */
+.note-textarea {
+  width: 100%;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font: 400 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Arial, sans-serif;
+  color: var(--text);
+  resize: vertical;
+  min-height: 300px;
+  box-sizing: border-box;
+  display: block;
+  margin-right: 0;
+}
+.note-textarea::placeholder {
+  color: #94a3b8;
+}
+.note-textarea:focus {
+  outline: none;
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25);
+}
+
+.note-textarea[readonly] {
+  background-color: #f9fafb;
+  cursor: not-allowed;
+}
+
+/* Footer row: edited text + actions aligned */
+.note-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-left: 0.2rem;
+}
+
+/* Edited stamp */
+.note-edited {
+  margin: 0;
+  color: #374151;
+  font-size: 12px;
+}
+
+/* Actions */
+.note-actions-row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin: 0; /* tighten */
+}
+
+.btn-primary {
+  border: 1px solid #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: #1e40af;
+  border-color: #1e40af;
+}
+
+/* Disabled state — make it fully non-interactive */
+.btn-primary:disabled,
+.btn-primary[aria-disabled="true"] {
+  background: #93c5fd;
+  border-color: #93c5fd;
+  color: #fff;
+  cursor: not-allowed;
+  pointer-events: none; /* stops hover from firing */
+}
+
+/* Safety: if hover still triggers via CSS order, keep visuals the same */
+.btn-primary:disabled:hover,
+.btn-primary[aria-disabled="true"]:hover {
+  background: #93c5fd;
+  border-color: #93c5fd;
+}
+
+.btn-secondary {
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #0f172a;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.btn-secondary:hover {
+  background: #f3f4f6;
+  border-color: #cfd3d8;
+}
+
+.print-only {
+  display: none;
+}
+.print-pre {
+  white-space: pre-wrap;
+  font: 400 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Arial, sans-serif;
+  color: var(--text);
+}
+
+/* ------- Print rules ------- */
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Show compact meta (course/section/mentor/date) */
+  .note-compact-meta,
+  .note-compact-meta * {
+    visibility: visible !important;
+  }
+
+  /* Show the print area (topics + next steps) */
+  #print-area,
+  #print-area * {
+    visibility: visible !important;
+  }
+
+  /* Remove app chrome / buttons / extras */
+  header,
+  aside,
+  .detail-header,
+  .note-meta-actions,
+  .autosave-status,
+  .note-footer .note-actions-row,
+  .back-link,
+  .note-divider {
+    display: none !important;
+  }
+
+  /* Full width, tidy spacing */
+  .dashboard-main,
+  .section,
+  .note-scroll,
+  #print-area {
+    margin: 2rem !important;
+    padding: 0 !important;
+  }
+
+  .note-title {
+    font-size: 18pt !important;
+    color: #000 !important;
+  }
+  .note-meta-muted {
+    font-size: 11pt !important;
+    color: #000 !important;
+  }
+
+  .note-block {
+    page-break-inside: avoid;
+    margin: 0 0 14px !important;
+  }
+  .note-block h3 {
+    font-size: 13pt !important;
+    color: #000 !important;
+    margin: 0 0 6px !important;
+  }
+
+  /* Swap textarea -> pre for printing */
+  .note-textarea {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
+
+/* Optional sticky footer if notes get long */
+@media (min-width: 640px) {
+  .note-footer.sticky {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    padding: 8px 0;
+    border-top: 1px solid #e5e7eb;
+  }
+}
+
+/* Make the detail page go edge-to-edge like list page at <=768 */
+@media (max-width: 768px) {
+  /* Add gutters back to inner rows so text isn’t hard against the edge */
+  .detail-header,
+  .note-meta-header,
+  .note-scroll {
+    margin-left: -2rem;
+    margin-right: -2rem;
+  }
+
+  .note-footer {
+    margin-left: 0.3rem;
+  }
+
+  /* Stretch the divider to the edges */
+  .note-divider {
+    margin-left: -2rem;
+    margin-right: -2rem;
+  }
+  /* Optional: square off inputs for the full-bleed look */
+  .note-textarea {
+    border-radius: 0;
+  }
+}

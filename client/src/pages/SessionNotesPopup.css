@@ -1,0 +1,7 @@
+/* SessionNotesPopup.css */
+html,
+body {
+  min-width: 560px;
+  min-height: 640px;
+  overflow: auto;
+}

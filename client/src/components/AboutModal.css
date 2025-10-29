@@ -1,0 +1,145 @@
+/* ========= Tokens / Base ========= */
+:root {
+  --ink: #395484;
+  --muted: #475569;
+  --brand: #395484;
+  --ring: rgba(30, 64, 175, 0.15);
+  --card-bg: #fff;
+}
+
+/* ========= Modal shell ========= */
+.about-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+}
+
+.about-modal__panel {
+  width: min(840px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  animation: about-pop .16s ease-out;
+  outline: none;
+}
+
+@keyframes about-pop {
+  from { transform: scale(.98); opacity: .85; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* ========= Card content ========= */
+.about-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(30, 58, 138, 0.08);
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  padding: 24px 28px; /* tighter, even padding */
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Back button (keeps the pill style you liked) */
+.about-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand);
+  font-weight: 700;
+  padding: 6px 14px;
+  border: 1.5px solid var(--brand);
+  border-radius: 999px;
+  background: transparent;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.about-back::before { content: "←"; font-size: 14px; line-height: 1; }
+.about-back:hover  { background: #1d4ed8; color: #fff; }
+.about-back:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--brand), white 65%);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* Logos row — smaller, calmer, with balanced gap */
+.about-logos {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 28px;
+}
+.about-logo {
+  height: 120px; /* was 200px */
+  width: auto;
+  display: block;
+}
+.about-logo.mmdc-logo {
+  height: 56px; /* pairs well visually with 120px MentEase wordmark */
+}
+
+/* Title & copy */
+.about-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--brand);
+  text-align: center;
+}
+
+.lead {
+  font-size: 1.02rem;
+  color: var(--ink);
+  margin: 6px 0 10px;
+}
+
+.about-text {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0 0 10px;
+  text-align: left;
+}
+
+/* Section block */
+.about-section {
+  margin-top: 18px; /* a bit tighter than 22px */
+}
+.about-heading {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 6px;
+  text-align: center;
+}
+
+/* Version footer */
+.about-version {
+  margin-top: 22px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* ========= Responsive ========= */
+@media (max-width: 640px) {
+  .about-modal__panel {
+    width: calc(100vw - 1rem);
+    max-height: calc(100vh - 1rem);
+    border-radius: 12px;
+  }
+  .about-card   { padding: 18px 16px; border-radius: 12px; }
+  .about-logos  { gap: 18px; margin: 2px 0 4px; }
+  .about-logo   { height: 90px; }
+  .about-logo.mmdc-logo { height: 40px; }
+  .about-title  { font-size: 1.4rem; }
+}

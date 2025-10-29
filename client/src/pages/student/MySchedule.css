@@ -1,0 +1,1007 @@
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.tabs-user {
+  margin-top: 1rem;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #64748b;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.tab-button.active {
+  color: #1e3a8a;
+  border-color: #1e3a8a;
+}
+
+/* --- GLOBAL STACKING FIXES ----------------------------------------------- */
+
+/* Keep the header above cards & dropdowns, but still below toast (z=2000) */
+.page-wrapper > header,
+.page-wrapper header.app-header,
+.page-wrapper .site-header {
+  position: relative;
+  z-index: 1200;
+}
+
+/* Create a new stacking context for the main area so its children
+   can't jump above the header's stacking context */
+.dashboard-main {
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+}
+
+/* List + Card */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow: visible;
+}
+.schedule-card {
+  position: relative;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  animation: fadeInUp 0.6s ease forwards;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.year-chip {
+  position: absolute;
+  top: 13px;
+  right: 0px;
+  z-index: 2;
+  background: color-mix(in srgb, var(--accent, #1d4ed8) 15%, white 85%);
+  color: var(--accent, #1d4ed8) !important;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px 0 0 8px;
+  pointer-events: none;
+}
+
+/* Hover */
+.schedule-card:hover {
+  z-index: 10; /* modest local bump; header still wins (1200) */
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(30, 58, 138, 0.15);
+}
+
+/* Colored cards */
+.schedule-card.is-colored:hover,
+.schedule-card.is-colored:focus-within {
+  border-color: var(--accent, #1d4ed8) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* TODAY glow */
+.schedule-card.is-today {
+  box-shadow: 0 0 12px 2px rgba(152, 255, 9, 0.174),
+    0 0 24px 2px rgba(153, 255, 9, 0.25), 0 8px 26px rgba(30, 58, 138, 0.14);
+}
+.schedule-card.is-today:hover,
+.schedule-card.is-today:focus-within {
+  box-shadow: 0 0 14px 2px rgba(153, 255, 9, 0.55),
+    0 0 28px 2px rgba(153, 255, 9, 0.35), 0 10px 30px rgba(30, 58, 138, 0.16);
+}
+
+/* Text bits */
+.schedule-info {
+  margin-top: -1rem;
+}
+.schedule-info .date {
+  font-weight: 700;
+  color: #1e3a8a;
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.schedule-info .subject {
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.schedule-info .mentor {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Topic pill */
+.topic {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.6rem 0.8rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-left: 3px solid var(--accent, #6366f1);
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: max-content;
+}
+
+.bottom-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* ---------- ACTIONS (JOIN + MORE) ---------- */
+.actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: nowrap;
+}
+
+.actions .join-btn,
+.actions .view-recording-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 8px;
+  line-height: 1;
+  margin: 0;
+}
+
+/* Primary buttons (default style) */
+.join-btn,
+.view-recording-btn {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.join-btn:hover,
+.view-recording-btn:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+}
+
+.schedule-card.is-colored {
+  border-top: 4px solid var(--accent, #1d4ed8);
+}
+
+/* Colored card buttons = solid accent */
+.schedule-card.is-colored .join-btn,
+.schedule-card.is-colored .view-recording-btn {
+  background: var(--accent, #1d4ed8) !important;
+  border: 1px solid var(--accent, #1d4ed8) !important;
+  color: #fff !important;
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.schedule-card.is-colored .join-btn:hover,
+.schedule-card.is-colored .join-btn:focus,
+.schedule-card.is-colored .view-recording-btn:hover,
+.schedule-card.is-colored .view-recording-btn:focus {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--accentRing, rgba(0, 0, 0, 0.08));
+}
+
+/* ---------- 'More Options' (scoped to MySchedule) ---------- */
+.ms-more-options {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 !important;
+}
+
+.ms-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 20px;
+  min-width: 120px;
+  box-sizing: border-box;
+
+  background-color: #f1f5f9;
+  color: #1e3a8a;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s ease, filter 0.15s ease;
+}
+.ms-more-btn:hover {
+  background-color: #e2e8f0;
+}
+
+/* Dropdown: keep above neighboring cards but WAY below the header */
+.ms-menu-dropdown {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  z-index: 50;             /* ↓ was 9999 — lowered to stay under header (1200) */
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  display: none;
+  flex-direction: column;
+  min-width: 140px;
+
+  /* cap height, internal scroll, and stop scroll chaining */
+  max-height: 260px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* Flip upward when space is tight */
+.ms-menu-dropdown.drop-up {
+  top: auto;
+  bottom: 110%;
+  transform-origin: bottom right;
+}
+
+.ms-menu-dropdown.show {
+  display: flex;
+}
+.ms-menu-dropdown button {
+  background: none;
+  border: none;
+  padding: 0.8rem 1rem;
+  text-align: left;
+  font-size: 0.9rem;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  width: 100%;
+}
+.ms-menu-dropdown button:hover {
+  background-color: #f1f5f9;
+}
+
+/* Fallback: force last two cards to drop-up (helps on short viewports) */
+.schedule-list > .schedule-card:last-child .ms-menu-dropdown,
+.schedule-list > .schedule-card:nth-last-child(2) .ms-menu-dropdown {
+  top: auto;
+  bottom: 110%;
+}
+
+/* IMPORTANT: remove giant z-index bump that was lifting the entire card
+   over the header. Keep it small so the card stays above neighbors only. */
+.schedule-card:has(.ms-menu-dropdown.show),
+.schedule-card.menu-open {
+  position: relative;
+  z-index: 60; /* was 1000 — header is 1200, so header now always wins */
+}
+
+/* ---------- MOBILE STACKING ---------- */
+@media (max-width: 768px) {
+  .tabs {
+    margin-left: -2rem;
+    margin-top: 1rem;
+  }
+
+  .bottom-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+  }
+
+  .topic {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  .actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    width: 100% !important;
+    gap: 0.6rem !important;
+    min-width: 0 !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .actions > .join-btn,
+  .actions > .view-recording-btn,
+  .actions > .ms-more-options {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+  }
+
+  .join-btn,
+  .view-recording-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0.9rem 1rem !important;
+    text-align: center !important;
+    min-width: 0 !important;
+    height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .ms-more-options {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex: 0 0 auto !important;
+  }
+
+  .ms-more-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0.9rem 1rem !important;
+    text-align: center !important;
+    min-width: 0 !important;
+    height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .ms-menu-dropdown {
+    right: 0;
+    left: 0;
+    top: 100%;
+    margin-top: 0.4rem;
+    width: 100%;
+  }
+
+  .year-chip {
+    top: 10px;
+    right: 0px;
+    font-size: 0.72rem;
+    padding: 0.3rem 0.55rem;
+  }
+}
+
+/* Empty state */
+.empty-msg {
+  font-size: 1rem;
+  color: #94a3b8;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+/* Center the empty message horizontally within the list */
+.schedule-list.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+.schedule-list.empty .empty-msg {
+  margin: 1.25rem auto;
+  display: inline-block;
+}
+
+/* Status badges (e.g., Cancelled) */
+.status-badge {
+  display: inline-block;
+  margin-left: 0.2rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  vertical-align: middle;
+  border: 1px solid transparent;
+}
+.status-badge.cancelled {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+/* Anim */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- Typed Toast (global) ---------- */
+.toast {
+  font-family: "Inter", system-ui, sans-serif;
+  position: fixed;
+  top: 4.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 1.05rem;
+  font-weight: 500;
+  z-index: 2000; /* stays above header (1200) */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border: 1px solid transparent;
+  animation: toastFade 3s ease-in-out;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* On small screens, allow wrapping so it doesn't overflow */
+@media (max-width: 768px) {
+  .toast {
+    white-space: normal;
+    max-width: calc(100vw - 24px);
+    text-align: center;
+    word-wrap: break-word;
+  }
+
+  .schedule-info .date {
+    position: relative;
+    --cancel-chip-h: 1.2rem;
+    --cancel-chip-gap: 0.4rem;
+  }
+
+  /* add padding only when the Cancelled chip is present */
+  .schedule-info .date:has(.status-badge.cancelled) {
+    padding-top: calc(var(--cancel-chip-h) + var(--cancel-chip-gap));
+  }
+
+  .schedule-info .date .status-badge.cancelled {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    width: auto;
+    line-height: 1;
+  }
+}
+.toast.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.toast.error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+.toast.info {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-color: #bfdbfe;
+}
+
+@keyframes toastFade {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  90% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+}
+
+/* Header with Manage Links (page-local header row, not the global app header) */
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.header-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: visible;
+}
+
+.manage-btn,
+.manage-links-btn {
+  background: #1e3a8a;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+.manage-btn:hover,
+.manage-links-btn:hover {
+  filter: brightness(1.12);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.manage-menu-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1100;
+  display: none;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.12);
+  min-width: 220px;
+  overflow: hidden;
+}
+.manage-menu-popover.show {
+  display: block;
+  animation: dropdownMorph 0.18s ease-out;
+}
+.manage-menu-popover button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  font-weight: 600;
+  color: #1e3a8a;
+  cursor: pointer;
+}
+.manage-menu-popover button:hover {
+  background: #f1f5f9;
+}
+
+@keyframes dropdownMorph {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.manage-menu-title {
+  font-weight: 800;
+  letter-spacing: 0.1px;
+  color: #1e3a8a;
+}
+.manage-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.25rem;
+}
+
+.manage-links-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  left: auto;
+  z-index: 998;
+  display: none;
+  grid-template-rows: auto 1fr;
+  width: clamp(280px, 38vw, 520px);
+  max-height: min(50vh, 400px);
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.12);
+  padding: 0.75rem;
+  transform: translateZ(0);
+}
+.manage-links-menu.show {
+  display: grid;
+}
+
+@media (max-width: 768px) {
+  .schedule-header {
+    flex-direction: row;
+    align-items: center;
+  }
+  .header-actions {
+    margin-left: auto;
+    position: static;
+  }
+}
+
+@media (max-height: 600px) {
+  .manage-links-menu {
+    max-height: 300px;
+  }
+  .header-actions {
+    margin-right: -101rem;
+  }
+}
+
+/* Manage menu head + search */
+.manage-menu-head {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.35rem 0.35rem 0.6rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 0.35rem;
+}
+.manage-search {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.9rem;
+  color: #0f172a;
+  background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+}
+.manage-search:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: #c7d2fe;
+}
+
+/* Items */
+.manage-item {
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid transparent;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.6rem;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  color: #0f172a;
+  cursor: pointer;
+}
+.manage-item:hover {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 0 rgba(2, 6, 23, 0.03) inset;
+}
+.manage-item.muted {
+  color: #94a3b8;
+  cursor: default;
+}
+
+.mi-left {
+  display: grid;
+  gap: 0.15rem;
+}
+.mi-title {
+  font-weight: 700;
+  color: #1e3a8a;
+  line-height: 1.25;
+}
+.mi-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #475569;
+}
+.mi-section {
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-weight: 600;
+  background: var(--accent, #1d4ed8);
+  color: #fff;
+  border: 1px solid var(--accent, #1d4ed8);
+}
+
+.status-badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.status-badge.linked {
+  background: #f0ffee;
+  color: #3b8a1e;
+  border-color: #3b8a1e;
+}
+.status-badge.unset {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.mi-cta {
+  color: #1e3a8a;
+  font-weight: 800;
+  font-size: 0.83rem;
+}
+
+/* Empty state */
+.manage-empty {
+  padding: 0.8rem 0.6rem 1rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Extra mobile rules */
+@media (max-width: 768px) {
+  .schedule-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    position: relative;
+  }
+  .header-actions {
+    position: relative;
+    margin-right: -2rem;
+    margin-top: -3.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .manage-links-menu {
+    left: auto;
+    right: 0;
+    margin-right: -2rem;
+    max-width: 90vw;
+  }
+  .manage-links-btn {
+    font-size: 0.8rem;
+    margin-right: -2rem;
+  }
+}
+.manage-links-menu.show {
+  display: grid;
+  animation: dropdownMorph 0.25s ease-out;
+}
+
+/* ================================
+   Improved Skeletons (MySchedule)
+   ================================ */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.92;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+/* Base skeleton surface */
+.skeleton {
+  background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 40%, #e5e7eb 80%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* Reduced motion: pulse instead of shimmer */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: skeleton-pulse 1.2s ease-in-out infinite;
+  }
+}
+
+/* Skeleton Card container */
+.schedule-card.skeleton-card {
+  pointer-events: none;
+  min-height: 200px;
+  border-color: #e2e8f0;
+  box-shadow: none;
+  transform: none;
+}
+.schedule-card.skeleton-card:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+/* Fake year chip */
+.year-chip-skel {
+  position: absolute;
+  top: 13px;
+  right: 0;
+  width: 110px;
+  height: 28px;
+  border-radius: 8px 0 0 8px;
+}
+
+/* Lines / blocks */
+.skel-line {
+  height: 16px;
+  margin-bottom: 12px;
+}
+
+/* Resemble actual text hierarchy */
+.skel-date {
+  height: 18px;
+  width: 58%;
+  border-radius: 6px;
+}
+.skel-subject {
+  height: 16px;
+  width: 64%;
+  border-radius: 6px;
+}
+.skel-mentor {
+  height: 14px;
+  width: 38%;
+  border-radius: 6px;
+}
+
+/* Topic pill placeholder */
+.skel-topic {
+  height: 36px;
+  width: clamp(180px, 42%, 320px);
+  border-radius: 8px;
+  margin-top: 4px;
+  border-left: 3px solid transparent;
+}
+
+/* Button placeholders */
+.skel-btn {
+  height: 44px;
+  border-radius: 8px;
+}
+.skel-btn.primary {
+  width: 140px;
+}
+.skel-btn.secondary {
+  width: 130px;
+}
+
+.actions .skel-btn {
+  margin: 0;
+}
+
+/* Slight variety across items to break monotony */
+.schedule-card.skeleton-card:nth-child(2) .skel-date {
+  width: 66%;
+}
+.schedule-card.skeleton-card:nth-child(2) .skel-subject {
+  width: 58%;
+}
+.schedule-card.skeleton-card:nth-child(2) .skel-mentor {
+  width: 44%;
+}
+.schedule-card.skeleton-card:nth-child(3) .skel-date {
+  width: 52%;
+}
+.schedule-card.skeleton-card:nth-child(3) .skel-subject {
+  width: 72%;
+}
+.schedule-card.skeleton-card:nth-child(3) .skel-mentor {
+  width: 36%;
+}
+
+/* Mobile tweaks */
+@media (max-width: 768px) {
+  .year-chip-skel {
+    width: 90px;
+    height: 24px;
+    top: 10px;
+  }
+  .skel-date {
+    width: 70%;
+  }
+  .skel-subject {
+    width: 82%;
+  }
+  .skel-mentor {
+    width: 48%;
+  }
+  .skel-topic {
+    width: 100%;
+  }
+  .skel-btn.primary,
+  .skel-btn.secondary {
+    width: 100%;
+  }
+}
+
+/* Meta row (range + page) */
+.schedule-meta {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.schedule-meta__range { margin-left: 0.3rem; }
+.schedule-meta__page  { margin-right: 0.3rem; font-size: 0.75rem; color: #9ca3af; }
+
+/* ≤768px: keep row layout, tighten spacing */
+@media (max-width: 768px) {
+  .schedule-meta {
+    flex-direction: row;              /* stay side-by-side */
+    justify-content: space-between;   /* left/right ends */
+    align-items: center;
+    gap: 0;
+    margin-bottom: 1.5rem;
+    margin-left: -1.8rem;
+    margin-right: -1.8rem;
+  }
+  .schedule-meta__range { margin-left: 0; }
+  .schedule-meta__page  { margin-right: 0; font-size: 0.8rem; color: #94a3b8; }
+}
+
+/* Status badges (extend existing set) */
+.status-badge.rescheduled {
+  background: #fffbeb;   /* soft amber */
+  color: #b45309;        /* amber-700 */
+  border-color: #fcd34d; /* amber-300 */
+}
+
+/* Mobile: give same layout treatment to Rescheduled as Cancelled */
+@media (max-width: 768px) {
+  /* add padding when either chip is present */
+  .schedule-info .date:has(.status-badge.cancelled),
+  .schedule-info .date:has(.status-badge.rescheduled) {
+    padding-top: calc(var(--cancel-chip-h) + var(--cancel-chip-gap));
+  }
+
+  /* position the rescheduled chip top-left like cancelled */
+  .schedule-info .date .status-badge.rescheduled {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    width: auto;
+    line-height: 1;
+  }
+}

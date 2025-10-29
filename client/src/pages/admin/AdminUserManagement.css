@@ -1,0 +1,818 @@
+/* =============== UserControl — Polished Theme (scoped) =============== */
+.admin-user-control {
+  --uc-accent: #1d4ed8;
+  --uc-accentRing: rgba(29, 78, 216, 0.25);
+  --uc-bg: #ffffff;
+  --uc-bgSoft: #f8fafc;
+  --uc-border: #e2e8f0;
+  --uc-muted: #6b7280;
+  --uc-mutedLight: #9ca3af;
+  --uc-text: #0f172a;
+  --uc-radius: 12px;
+  --uc-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --uc-shadowHover: 0 8px 24px rgba(30, 58, 138, 0.15);
+}
+
+/* Page spacing */
+.admin-user-control .dashboard-main .section > h2 {
+  margin-bottom: 1rem;
+}
+
+/* ---------- Tabs (match Feedback styling) ---------- */
+.admin-user-control .tabs {
+  display: flex;
+  gap: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1rem;
+}
+.admin-user-control .tab-button {
+  background: none;
+  border: none;
+  font-weight: 600;
+  color: var(--uc-muted);
+  padding: 0.65rem 1rem;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.admin-user-control .tab-button:hover {
+  color: #374151;
+  transform: translateY(-1px);
+}
+.admin-user-control .tab-button.active {
+  color: var(--uc-accent);
+  border-bottom-color: var(--uc-accent);
+}
+
+/* ---------- Filter panel ---------- */
+.admin-user-control .filter-panel {
+  margin-bottom: 2.5rem;
+}
+.admin-user-control .filter-container {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--uc-border);
+  border-radius: var(--uc-radius);
+  padding: 1rem;
+  box-shadow: var(--uc-shadow);
+  display: grid;
+  gap: 0.75rem 1rem;
+  align-items: end;
+}
+.admin-user-control .filter-container.desktop {
+  grid-template-columns: 1fr 1fr 1fr 1.2fr auto;
+}
+.admin-user-control .filter-container.desktop.admin-tab {
+  grid-template-columns: 1fr auto;
+}
+.admin-user-control .filter-container.mobile {
+  grid-template-columns: 1fr;
+  margin-left: 0;
+  margin-right: 0;
+  border-radius: var(--uc-radius);
+  border-left: 1px solid var(--uc-border);
+  border-right: 1px solid var(--uc-border);
+  padding: 0.75rem;
+}
+
+.admin-user-control .filter-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.35rem;
+}
+.admin-user-control .filter-select,
+.admin-user-control .filter-input {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--uc-border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: var(--uc-bg);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease,
+    background 0.15s ease;
+  box-sizing: border-box;
+}
+
+.admin-user-control .filter-select:focus,
+.admin-user-control .filter-input:focus {
+  outline: none;
+  border-color: var(--uc-accent);
+  box-shadow: 0 0 0 3px var(--uc-accentRing);
+}
+.admin-user-control .filter-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.admin-user-control .filter-field {
+  min-width: 0;
+}
+
+/* Reset button alignment */
+.admin-user-control .filter-reset-container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  height: 100%;
+  margin-top: 0;
+}
+.admin-user-control .btn.btn-ghost.btn-reset {
+  margin-left: 1.4rem;
+  height: 2.35rem;
+  font-weight: 600;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+/* ---------- “Add” button row ---------- */
+.admin-user-control .add-form-panel {
+  margin-bottom: 1rem;
+}
+.admin-user-control .add-form-content {
+  display: flex;
+  justify-content: flex-end;
+}
+.admin-user-control .btn.btn-primary.btn-form.add-button {
+  background: var(--uc-accent);
+  border: 1px solid var(--uc-accent);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  font-weight: 700;
+  transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.admin-user-control .btn.btn-primary.btn-form.add-button:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 0 4px var(--uc-accentRing);
+  transform: translateY(-1px);
+}
+
+/* ---------- List container ---------- */
+.admin-user-control .user-list {
+  overflow: hidden;
+}
+.admin-user-control .user-list .user-card:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* ---------- User card ---------- */
+.admin-user-control .user-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--uc-border);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+  position: relative;
+}
+.admin-user-control .user-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--uc-shadowHover);
+  z-index: 1;
+}
+.admin-user-control .user-card:last-child {
+  border-bottom: none;
+}
+
+.admin-user-control .user-info {
+  display: grid;
+  gap: 0.2rem;
+}
+.admin-user-control .user-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+.admin-user-control .user-email {
+  color: var(--uc-muted);
+  font-size: 0.9rem;
+}
+
+/* Dynamic accent from --accent; falls back to --uc-accent */
+.admin-user-control .user-details {
+  font-size: 0.8rem;
+  color: #475569;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-left: 3px solid var(--accent, var(--uc-accent));
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+/* Remove button */
+.admin-user-control .user-card .btn.btn-danger {
+  background: #ef4444;
+  border: 1px solid #ef4444;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.5rem 0.9rem;
+  font-weight: 700;
+  transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.admin-user-control .user-card .btn.btn-danger:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+  transform: translateY(-1px);
+}
+
+/* ---------- Buttons: ghost / primary ---------- */
+.admin-user-control .btn-ghost {
+  background: #fff;
+  color: #334155;
+  border: 1px solid var(--uc-border);
+  border-radius: 10px;
+  padding: 0.5rem 0.9rem;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.admin-user-control .btn-ghost:hover {
+  background: #f9fafb;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25);
+  transform: translateY(-1px);
+}
+.admin-user-control .btn-primary {
+  background: var(--uc-accent);
+  color: #fff;
+  border: 1px solid var(--uc-accent);
+  border-radius: 10px;
+  padding: 0.55rem 1rem;
+  font-weight: 700;
+  transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.admin-user-control .btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 0 4px var(--uc-accentRing);
+  transform: translateY(-1px);
+}
+
+/* ---------- Modal ---------- */
+.admin-user-control .modal-overlay {
+  z-index: 1000;
+}
+.admin-user-control .modal-content {
+  border-radius: 12px;
+  border: 1px solid var(--uc-border);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  max-width: 560px;
+}
+.admin-user-control .modal-header h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0;
+}
+.admin-user-control .form-input,
+.admin-user-control .form-select,
+.admin-user-control .form-textarea {
+  border: 1px solid var(--uc-border);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+}
+.admin-user-control .form-input:focus,
+.admin-user-control .form-textarea:focus {
+  outline: none;
+  border-color: var(--uc-accent);
+  box-shadow: 0 0 0 3px var(--uc-accentRing);
+}
+
+/* ---------- Toast ---------- */
+.admin-user-control .toast {
+  border-radius: 6px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border: 1px solid transparent;
+}
+.admin-user-control .toast.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.admin-user-control .toast.error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+/* Hide any legacy icon span to match global toast look */
+.admin-user-control .toast-icon { display: none; }
+
+/* =================== RESPONSIVE =================== */
+
+/* Tablet: tighten header↔tabs spacing, unify gutters */
+@media (max-width: 1152px) {
+  .admin-user-control .dashboard-main .section > h2 {
+    margin-bottom: 0.75rem;
+  }
+  .admin-user-control .tabs {
+    margin-top: 0.25rem;
+    margin-bottom: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .admin-user-control .filter-panel,
+  .admin-user-control .add-form-panel,
+  .admin-user-control .user-list-panel {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .admin-user-control .btn.btn-primary.btn-form.add-button {
+    height: 2.35rem;
+    line-height: 2.35rem;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* ≤768px: narrower side gutters, stack cards, full-width Remove button */
+@media (max-width: 768px) {
+  .admin-user-control .dashboard-main .section > h2 {
+    margin-bottom: 0.5rem;
+  }
+  .admin-user-control .tabs {
+    margin-top: 0.2rem;
+    margin-bottom: 0.6rem;
+    gap: 0.5rem;
+  }
+
+  .admin-user-control .filter-panel,
+  .admin-user-control .add-form-panel,
+  .admin-user-control .user-list-panel {
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+  }
+
+  .admin-user-control .filter-container,
+  .admin-user-control .filter-container.mobile {
+    padding: 0.6rem;
+  }
+
+  .admin-user-control .user-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+  .admin-user-control .user-card .btn.btn-danger {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+  }
+}
+
+/* Ultra-small phones: let Add button stretch if needed */
+@media (max-width: 420px) {
+  .admin-user-control .btn.btn-primary.btn-form.add-button {
+    width: 100%;
+  }
+}
+
+/* ========== NEW SEARCH & FILTER BAR STYLES ========== */
+.admin-user-control .search-filter-bar {
+  padding: 0; /* Remove padding */
+  border-bottom: none; /* Remove border */
+  background: transparent; /* Remove white background */
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.admin-user-control .search-container {
+  flex: 1;
+  min-width: 300px;
+}
+
+.admin-user-control .search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-user-control .search-icon {
+  position: absolute;
+  left: 12px;
+  color: #6b7280;
+  z-index: 1;
+}
+
+.admin-user-control .search-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.admin-user-control .search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  background: white;
+}
+
+.admin-user-control .search-clear {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.admin-user-control .search-clear:hover {
+  color: #374151;
+  background: #f3f4f6;
+}
+
+.admin-user-control .filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-user-control .filter-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.admin-user-control .filter-toggle-btn:hover {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+}
+
+.admin-user-control .filter-toggle-btn.active {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.admin-user-control .filter-icon {
+  transition: transform 0.2s ease;
+}
+
+.admin-user-control .filter-toggle-btn.active .filter-icon {
+  transform: rotate(180deg);
+}
+
+.admin-user-control .filter-badge {
+  background: #dc2626;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-user-control .add-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Collapsible Filter Panel */
+.admin-user-control .filter-panel-collapsible {
+  padding: 1rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  animation: slideDown 0.2s ease-out;
+}
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.admin-user-control .filter-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.admin-user-control .filter-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+}
+.admin-user-control .filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  width: 100%;
+}
+.admin-user-control .filter-grid.mobile {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+.admin-user-control .filter-grid .filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.admin-user-control .filter-grid .filter-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+.admin-user-control .filter-grid .filter-select {
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: white;
+  transition: all 0.2s ease;
+}
+.admin-user-control .filter-grid .filter-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.admin-user-control .filter-grid .filter-select:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Mobile responsiveness for new search/filter bar */
+@media (max-width: 768px) {
+  .admin-user-control .search-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .admin-user-control .search-container {
+    min-width: unset;
+  }
+  .admin-user-control .filter-controls {
+    justify-content: space-between;
+  }
+  .admin-user-control .filter-toggle-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* ========== USER STATISTICS SECTION ========== */
+.admin-user-control .user-stats-section {
+  margin-bottom: 2rem;
+}
+.admin-user-control .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+.admin-user-control .stat-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.admin-user-control .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.admin-user-control .stat-card.total {
+  border-left: 4px solid #3b82f6;
+}
+.admin-user-control .stat-card.students {
+  border-left: 4px solid #f59e0b;
+}
+.admin-user-control .stat-card.mentors {
+  border-left: 4px solid #10b981;
+}
+.admin-user-control .stat-card.admins {
+  border-left: 4px solid #ef4444;
+}
+.admin-user-control .stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+.admin-user-control .stat-card.total .stat-icon {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+.admin-user-control .stat-card.students .stat-icon {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+.admin-user-control .stat-card.mentors .stat-icon {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+.admin-user-control .stat-card.admins .stat-icon {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+.admin-user-control .stat-content {
+  flex: 1;
+}
+.admin-user-control .stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+.admin-user-control .stat-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Mobile responsiveness for stats */
+@media (max-width: 768px) {
+  .admin-user-control .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  .admin-user-control .stat-card {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+  .admin-user-control .stat-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .admin-user-control .stat-number {
+    font-size: 1.5rem;
+  }
+  .admin-user-control .stat-label {
+    font-size: 0.75rem;
+  }
+}
+@media (max-width: 480px) {
+  .admin-user-control .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Buttons Layout (DESKTOP/TABLET default: side-by-side) ===== */
+.admin-user-control .user-card > div:last-child {
+  display: flex !important;
+  flex-direction: row !important; /* side-by-side by default */
+  align-items: center !important;
+  gap: 0.5rem !important;
+  width: auto !important;
+  margin-left: 1rem !important;
+}
+.admin-user-control .user-card > div:last-child > button {
+  width: auto !important; /* natural width */
+  justify-content: center !important;
+  align-items: center !important;
+  display: inline-flex !important;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  box-sizing: border-box;
+}
+
+/* ===== Fix mobile alignment for Course/List & Buttons ===== */
+@media (max-width: 768px) {
+  .admin-user-control .user-list-panel {
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+  }
+  .admin-user-control .user-list {
+    margin: 0;
+  }
+
+  .admin-user-control .user-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    padding: 1rem !important;
+  }
+  .admin-user-control .user-card .user-info {
+    width: 100% !important;
+    text-align: left !important;
+  }
+  .admin-user-control .user-card .user-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    line-height: 1.3;
+  }
+  .admin-user-control .user-card .user-name > span {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Mobile: stack Edit above Delete, full-width */
+  .admin-user-control .user-card > div:last-child {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding-top: 0.25rem;
+  }
+  .admin-user-control .user-card > div:last-child > button {
+    width: 100% !important;
+  }
+}
+
+/* Add button compact on mobile */
+@media (max-width: 768px) {
+  .admin-user-control button[title="Add new course"] {
+    font-size: 0 !important;
+    gap: 0 !important;
+    padding: 0.5rem !important;
+    min-width: auto !important;
+  }
+  .admin-user-control button[title="Add new course"] svg {
+    width: 18px !important;
+    height: 18px !important;
+    margin: 10 !important;
+  }
+
+  /* Header row of list: stack and fill width */
+  .admin-user-control .user-list-container > div:first-child {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .admin-user-control .user-list-container > div:first-child > div {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin-top: 0rem !important;
+  }
+  .admin-user-control .user-list-container > div:first-child > div > span {
+    font-size: 0.8rem !important;
+    color: #9ca3af !important;
+  }
+
+  /* Prevent visual bleed */
+  .admin-user-control .user-card {
+    overflow: hidden;
+  }
+}
+
+/* --- Loading skeletons (content-only, no animation) --- */
+.admin-user-control .user-card.skeleton { border-color: #e5e7eb; background: #f8fafc; cursor: default; }
+
+.admin-user-control .skeleton-line { display: block; height: 14px; background: #e5e7eb; border-radius: 6px; }
+.admin-user-control .skeleton-line.h-xl { height: 28px; }
+.admin-user-control .skeleton-line.h-lg { height: 20px; }
+.admin-user-control .skeleton-line.h-sm { height: 14px; }
+.admin-user-control .skeleton-line.w-30 { width: 30%; }
+.admin-user-control .skeleton-line.w-40 { width: 40%; }
+.admin-user-control .skeleton-line.w-45 { width: 45%; }
+.admin-user-control .skeleton-line.w-50 { width: 50%; }
+.admin-user-control .skeleton-line.w-65 { width: 65%; }
+
+.admin-user-control .skeleton-button { width: 92px; height: 36px; background: #e5e7eb; border-radius: 6px; }
+.admin-user-control .skeleton-icon { width: 40px; height: 40px; background: #e5e7eb; border-radius: 8px; }
+
+.admin-user-control .stat-card.skeleton { border-left-color: transparent; background: #f8fafc; }
+
+/* simple spacing helpers for skeletons */
+.admin-user-control .mb-1 { margin-bottom: 0.25rem; }
+.admin-user-control .mb-2 { margin-bottom: 0.5rem; }

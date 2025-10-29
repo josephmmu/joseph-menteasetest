@@ -1,0 +1,64 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
+    "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+/* Global print styles */
+.print-only {
+  display: none;
+}
+
+@media print {
+  /* Show the print content when it's made visible by JS */
+  #feedback-print-sheet {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    left: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    background: white !important;
+    z-index: 9999 !important;
+  }
+
+  /* Hide modal and UI elements completely */
+  .modal-overlay,
+  .modal-content,
+  .modal-backdrop {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Hide other common UI elements but be less aggressive */
+  nav,
+  header,
+  .sidebar,
+  button,
+  .header,
+  .navigation,
+  .menu {
+    display: none !important;
+  }
+
+  /* Make sure print content is styled properly */
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Only show content when print sheet is positioned statically (during print) */
+  html,
+  body {
+    overflow: visible !important;
+  }
+}

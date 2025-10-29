@@ -1,0 +1,291 @@
+.group-feedback-modal {
+  background: white;
+  border-radius: 16px;
+  width: 90vw;
+  max-width: 900px;
+  height: 80vh;
+  max-height: 600px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  padding: 1.75rem;
+}
+
+/* Center the modal while still letting the overlay scroll */
+.modal-overlay--scroll {
+  align-items: center;          /* center vertically */
+  justify-content: center;      /* center horizontally (in case not set globally) */
+  overflow-y: auto;             /* overlay scrolls if needed */
+  padding: 40px 16px;           /* breathing room */
+}
+
+/* Keep the modal within the viewport; use dynamic viewport units for mobile chrome */
+.modal-overlay--scroll .group-feedback-modal {
+  width: min(900px, 100% - 32px);        /* don't overflow horizontally */
+  max-height: calc(100dvh - 80px);       /* stay within viewport vertically */
+  height: auto;                          /* grow with content up to max-height */
+  overflow: hidden;                      /* prevent internal accidental overflow */
+}
+
+/* Remove min-height constraint so content can shrink/grow naturally */
+.modal-overlay--scroll .ggf-content {
+  min-height: unset;
+}
+
+
+.ggf-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #64748b;
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.ggf-close:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.ggf-session-info {
+  margin: 0 0 4px 0;
+  color: #475569;
+  font-weight: 500;
+}
+
+.ggf-date {
+  margin: 0 0 4px 0;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.ggf-topic {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.ggf-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Student Selection Panel */
+.ggf-student-panel {
+  width: 280px;
+  border-right: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 20px 0;
+  overflow-y: auto;
+}
+
+.ggf-student-panel h3 {
+  margin: 0 0 16px 0;
+  padding: 0;
+  color: #1e3a8a;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ggf-student-panel,
+.ggf-form-panel {
+  overflow-y: auto;               /* scroll inside panels if needed */
+  max-height: inherit;            /* adopt modal max-height */
+}
+
+
+.student-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.student-item {
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.student-item:hover {
+  background: #e2e8f0;
+}
+
+.student-item.selected {
+  background: #dbeafe;
+  border-left-color: #3b82f6;
+}
+
+.student-name {
+  display: block;
+  color: #1e293b;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.student-status {
+  display: block;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.no-students {
+  padding: 20px;
+  color: #64748b;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Form Panel */
+.ggf-form-panel {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+
+.ggf-form-panel h3 {
+  margin: 0 0 20px 0;
+  color: #1e293b;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.ggf-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #64748b;
+  text-align: center;
+}
+
+.ggf-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #374151;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.ggf-notes {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  resize: vertical;
+  margin-bottom: 16px;
+  font-family: inherit;
+}
+
+.ggf-notes:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ggf-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.ggf-check input[type="checkbox"] {
+  margin: 0;
+}
+
+.ggf-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.btn-ghost {
+  background: white;
+  color: #64748b;
+  border-color: #d1d5db;
+}
+
+.btn-ghost:hover {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .group-feedback-modal {
+    width: 100vw;
+    border-radius: 8px;
+  }
+
+  .ggf-content {
+    flex-direction: column;
+    display: flex;
+  flex: 1;
+  min-height: 0;  
+  }
+
+  .ggf-student-panel {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    max-height: 200px;
+  }
+
+  .ggf-form-panel {
+    padding: 16px 20px;
+  }
+}
+
+/* Single-student sizing still respects viewport */
+.group-feedback-modal.single-student {
+  width: min(500px, 100% - 32px);
+  max-height: calc(100dvh - 80px);
+}
+
+.group-feedback-modal.single-student .ggf-form-panel {
+  width: 100%;
+}

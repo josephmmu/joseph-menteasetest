@@ -1,0 +1,657 @@
+/* ===== Base layout ===== */
+.aaci.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.aaci.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  width: 90%;
+  max-width: 720px; /* widened from 520px */
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --aaci-control-h: 44px;
+}
+.aaci.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.aaci.icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f0f9ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.aaci.title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+.aaci.subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.aaci.scroll {
+  overflow-y: auto;
+  max-height: calc(90vh - 120px);
+  padding: 0.5rem;
+  flex: 1;
+}
+.aaci.footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+/* ===== Form blocks ===== */
+.section {
+  margin-bottom: 1rem;
+}
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+.sublabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  margin-bottom: 0.375rem;
+}
+.field {
+  width: 100%;
+}
+.help {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* default vertical rhythm between stacked fields */
+.aaci .section .field + .field {
+  margin-top: 0.5rem;
+}
+
+/* ===== Inputs ===== */
+.input,
+.select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+.input.with-icon {
+  padding-left: 2.5rem;
+  position: relative;
+}
+.input-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+}
+.text-center {
+  text-align: left;
+}
+.muted {
+  background: #f9fafb;
+  color: #374151;
+}
+
+/* small gap between "All Programs" and the search input */
+.aaci .section .field + .subject-box {
+  margin-top: 0.5rem;
+}
+
+/* ===== Buttons (generic) ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    opacity 0.2s ease;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  line-height: 1;
+}
+.aaci button::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.btn-primary {
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+.btn-outline {
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+.btn-outline:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+}
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+.icon-btn:hover {
+  color: #374151;
+}
+
+/* ===== Rows / spacing ===== */
+.row {
+  display: flex;
+  align-items: center;
+}
+.align-end {
+  align-items: flex-end;
+}
+.gap-2 {
+  gap: 0.5rem;
+}
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+.mt-2 {
+  margin-top: 0.5rem;
+}
+.flex-1 {
+  flex: 1;
+}
+
+/* ===== Chips / badges ===== */
+.chip {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chip-active {
+  background: #eef2ff;
+  color: #1d4ed8;
+  border-color: #c7d2fe;
+}
+
+.pg {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff;
+  display: inline-block;
+}
+.pg-it {
+  background: #3b82f6;
+}
+.pg-ba {
+  background: #10b981;
+}
+.pg-ge {
+  background: #f59e0b;
+}
+.pg-default {
+  background: #6b7280;
+}
+
+/* ===== Subject dropdown ===== */
+.subject-box {
+  position: relative;
+  min-width: 0;
+}
+.dropdown {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.dropdown-filter {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  border-bottom: 1px solid #f3f4f6;
+  padding: 6px 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 1;
+}
+.dropdown-item {
+  padding: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+}
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+.dropdown-item:hover {
+  background: #f9fafb;
+}
+.dropdown-empty {
+  padding: 1.5rem 0.75rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ===== Selected pill ===== */
+.selected-pill {
+  background: #f0f9ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.selected-pill-text {
+  font-weight: 500;
+  color: #1e40af;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ===== Section preview ===== */
+.section-preview-wrap {
+  position: relative;
+}
+.section-preview {
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  letter-spacing: 0.05em;
+}
+.section-valid {
+  border-color: #10b981;
+}
+.section-invalid {
+  border-color: #ef4444;
+}
+.section-valid-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: #10b981;
+  color: #fff;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== Helper texts ===== */
+.helper {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+.tiny-helper {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+/* ===== Warning banner ===== */
+.aaci.banner-warning {
+  margin-bottom: 0.75rem;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+}
+.bw-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.bw-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.4;
+}
+
+/* ===== Card ===== */
+.card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px 12px 12px 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+.card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
+}
+
+/* ===== Mentor list ===== */
+.mentor-list-container {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff;
+}
+.mentor-list-container::-webkit-scrollbar {
+  width: 6px;
+}
+.mentor-list-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+.mentor-list-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+.mentor-list-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.mentor-item {
+  padding: 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+}
+.mentor-item:last-child {
+  border-bottom: none;
+}
+.mentor-item:hover {
+  background: #f9fafb;
+}
+.mentor-name {
+  font-weight: 500;
+  color: #111827;
+  font-size: 0.875rem;
+}
+.mentor-email {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.125rem;
+}
+
+/* ===== Preview card ===== */
+.preview-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+}
+.preview-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.preview-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.4;
+}
+.preview-sub {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+.preview-term {
+  font-size: 0.875rem;
+  color: #3b82f6;
+  margin-top: 0.25rem;
+}
+
+/* ===== Uniform control height for standard controls ===== */
+.aaci .input,
+.aaci .select,
+.aaci .btn {
+  height: var(--aaci-control-h);
+  box-sizing: border-box;
+}
+.aaci .btn {
+  padding: 0 1rem;
+}
+
+/* Keep intentionally small buttons small */
+.aaci .btn.btn-sm {
+  height: 32px;
+  padding: 0.375rem 0.75rem;
+}
+
+/* ===== Bulletproof alignment for the Subject row ===== */
+.row.subject-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+.row.subject-row > .subject-box {
+  display: flex;
+  min-width: 0;
+}
+.row.subject-row > .subject-box .input {
+  height: 100%;
+}
+
+/* ===== Custom Add New button ===== */
+.aaci .subject-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  height: var(--aaci-control-h);
+  padding: 0 1rem;
+  border-radius: 6px;
+  background: #3b82f6;
+  border: 1px solid #3b82f6;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  line-height: 1;
+}
+.aaci .subject-add-btn:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+.aaci .subject-add-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+.aaci .subject-add-btn svg {
+  flex: 0 0 auto;
+}
+
+/* White variant for Cancel (same geometry) */
+.aaci .subject-add-btn--white {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+.aaci .subject-add-btn--white:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+.aaci .subject-add-btn--white:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Disabled state to match native button behavior */
+.aaci .subject-add-btn:disabled,
+.aaci .subject-add-btn--white:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Normalize geometry across buttons */
+.aaci .btn,
+.aaci .subject-add-btn,
+.aaci .subject-add-btn--white {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--aaci-control-h);
+  padding: 0 1rem;
+  line-height: 1;
+  box-sizing: border-box;
+  border-width: 1px;
+}
+
+/* Prevent SVG baseline wobble */
+.aaci .btn svg,
+.aaci .subject-add-btn svg,
+.aaci .subject-add-btn--white svg {
+  display: block;
+}
+
+/* --- Meeting Schedule spacing tweaks --- */
+.aaci .section.section-meeting-sched > .field + .field {
+  margin-top: 0.75rem;
+}
+.aaci .section.section-meeting-sched > .field:first-of-type .sublabel {
+  margin-bottom: 0.9rem;
+}
+.aaci .section.section-meeting-sched > .field + .field .sublabel {
+  margin-bottom: 0.25rem;
+}
+.aaci .section.section-meeting-sched .row .field + .field {
+  margin-top: 0;
+}
+.aaci .section.section-meeting-sched .row .field .sublabel {
+  margin-bottom: 0.25rem;
+}
+
+/* Prevent italics in selects */
+.aaci .select,
+.aaci .select option {
+  font-style: normal !important;
+}
+
+/* Keep subject text readable on hover in the Subject dropdown */
+.aaci .dropdown .dropdown-item {
+  color: #111827;
+}
+.aaci .dropdown .dropdown-item:hover {
+  background: #f3f4f6;
+}
+.aaci .dropdown .dropdown-item:hover span:not(.pg) {
+  color: #111827;
+}

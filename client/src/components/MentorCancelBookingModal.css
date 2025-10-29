@@ -1,0 +1,213 @@
+/* Scope all base (non-compact) styles */
+.mentor-cancel .modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 16px; /* breathing room around the modal */
+}
+
+.mentor-cancel .modal-content {
+  background: #fff;
+  padding: 1.5rem;                 /* inner content padding */
+  border-radius: 16px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(30, 58, 138, 0.25);
+  animation: fadeIn 0.25s ease;
+  border: 1px solid #e2e8f0;
+  position: relative;
+}
+
+/* Typography + meta */
+.mentor-cancel .mc-title {
+  margin: 0 0 0.75rem 0;
+  color: #1e3a8a;
+  font-weight: 700;
+  text-align: left;
+}
+
+.mentor-cancel .mc-meta p {
+  margin: 0.15rem 0;
+  color: #334155;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.mentor-cancel .mc-scheduled { margin-top: 0.25rem; }
+
+/* Notices */
+.mentor-cancel .hint { color: #64748b; font-size: 0.9rem; text-align: left; }
+.mentor-cancel .mc-notice { margin-top: 1rem; }
+
+/* Label base */
+.mentor-cancel .label {
+  font-weight: 600;
+  color: #1e3a8a;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+/* Textarea row: label above field */
+.mentor-cancel .mc-form .row.full:not(.checkbox-row) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.9rem;
+  align-items: stretch; /* ensure children stretch, not center */
+}
+
+/* Inputs / textarea */
+.mentor-cancel textarea {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  resize: vertical;
+}
+.mentor-cancel textarea:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+}
+
+/* Checkbox + text side-by-side */
+.mentor-cancel .mc-form .row.full.checkbox-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  flex-wrap: nowrap;
+}
+
+.mentor-cancel .checkbox-row input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.mentor-cancel .checkbox-label {
+  display: inline;
+  margin: 0;
+  font-weight: 500;
+  color: #1e3a8a;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+/* Actions */
+.mentor-cancel .modal-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.mentor-cancel .btn {
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.05s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.mentor-cancel .btn:active { transform: translateY(1px); }
+
+.mentor-cancel .btn-ghost {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+.mentor-cancel .btn-ghost:hover { background: #e2e5e8; }
+
+.mentor-cancel .btn-primary {
+  background: #1e3a8a;
+  color: #fff;
+  border-color: transparent;
+}
+.mentor-cancel .btn-primary:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+/* Tip bubble */
+.mentor-cancel .tip-wrapper.top-right {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mentor-cancel .info-icon-svg {
+  width: 20px;
+  height: 20px;
+  opacity: 0.9;
+  transition: opacity 0.15s ease;
+  fill: #1e3a8a;
+}
+.mentor-cancel .tip-wrapper:hover .info-icon-svg { opacity: 1; }
+
+.mentor-cancel .tip-text {
+  position: absolute;
+  top: 125%;
+  right: 0;
+  width: max-content;
+  max-width: 280px;
+  background: #1e3a8a;
+  color: #fff;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.35);
+  z-index: 6000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.mentor-cancel .tip-text::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 8px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent #1e3a8a transparent;
+}
+.mentor-cancel .tip-wrapper:hover .tip-text { opacity: 1; visibility: visible; }
+
+/* Anim */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile polish */
+@media (max-width: 520px) {
+  .mentor-cancel .modal-overlay { align-items: stretch; padding: 12px; }
+  .mentor-cancel .modal-content {
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+}
+
+/* -----------------------------
+   Fix: force label fully left
+   ----------------------------- */
+.mentor-cancel .mc-form { text-align: left; }
+.mentor-cancel .mc-form .row.full .label {
+  text-align: left !important;   /* beat any global center rules */
+  align-self: flex-start;         /* avoid centering by parent flex */
+}

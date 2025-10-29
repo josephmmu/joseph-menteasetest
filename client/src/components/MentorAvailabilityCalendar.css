@@ -1,0 +1,291 @@
+/* ====== MentorAvailabilityCalendar.css (updated, full) ====== */
+:root {
+  --bg: #f8fafc;
+  --panel-bg: #fff;
+  --muted: #64748b;
+  --accent: #1e3a8a;
+  --accent-2: #3b82f6;
+  --accent-ring: rgba(59, 130, 246, 0.12);
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --surface: #fbfdff;
+  --radius: 14px;
+  --shadow-soft: 0 8px 28px rgba(2, 6, 23, 0.08);
+  --shadow-strong: 0 12px 36px rgba(2, 6, 23, 0.12);
+  --gap: 16px;
+  --pad: 18px;
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial;
+  --btn-radius: 999px;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg);
+}
+
+/* Lock background scroll whenever modal overlay is present */
+body:has(.mac-overlay),
+body:has(.mini-modal-overlay) { overflow: hidden; }
+
+/* ===================== Overlay + Panel ===================== */
+.mac-overlay {
+  position: fixed; inset: 0;
+  background: rgba(2, 6, 23, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 4000; padding: 22px; overflow: hidden;
+}
+
+/* root panel */
+.mac-panel {
+  position: relative;
+  width: min(1060px, 100%); max-width: 98%;
+  max-height: calc(100dvh - 44px);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--panel-bg), var(--surface));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-strong);
+  padding: var(--pad);
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+/* ===================== Header ===================== */
+.mac-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex: 0 0 auto; }
+.mac-header h3 { margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--accent); letter-spacing: -0.2px; padding: 6px 10px; border-radius: 8px; }
+.mac-actions .btn-ghost { padding: 6px 10px; border-radius: 8px; background: transparent; border: 1px solid rgba(15, 23, 42, 0.06); cursor: pointer; }
+.mac-actions .btn-ghost:hover { box-shadow: 0 4px 12px rgba(17,24,39,.04); }
+
+/* ===================== Layout ===================== */
+.mac-body {
+  flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable; display: flex; gap: calc(var(--gap) + 8px); align-items: flex-start; flex-wrap: nowrap;
+}
+
+/* left (calendar + controls) */
+.mac-left {
+  width: 500px; min-width: 260px; padding: 0 14px 14px 14px;
+  border-radius: 12px; background: linear-gradient(180deg,#fff 0%,#fbfdff 100%);
+  box-shadow: inset 0 1px 0 rgba(0,0,0,.02);
+  border: 1px solid rgba(226,232,240,.6);
+}
+
+/* right stack */
+.mac-right-stack { display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 320px; max-width: 600px; }
+.mac-right { padding: 14px; border-radius: 12px; background: linear-gradient(135deg,#fbfdff 0%,#f7fbff 100%); display: flex; flex-direction: column; border: 1px solid rgba(226,232,240,.6); }
+
+.bookings-card {
+  position: relative; width: 100%;
+  background: linear-gradient(135deg,#fbfdff 0%,#f7fbff 100%);
+  border: 1px solid rgba(226,232,240,.6);
+  border-radius: 12px; padding: 14px; height: fit-content;
+}
+/* tighter FAB space */
+.bookings-card.has-bottom-action { padding-bottom: 56px; }
+
+/* ===================== Form elements ===================== */
+.label { display: block; font-weight: 700; color: var(--muted); margin-bottom: 8px; font-size: 13px; }
+.select, .text-input, .time-input {
+  width: 100%; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid rgba(15,23,42,.06); background: linear-gradient(180deg,#fff,#fbfdff);
+  font-size: 14px; color: #0f172a; appearance: none; box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
+}
+.select:focus, .time-input:focus, .text-input:focus { outline: none; box-shadow: 0 0 0 4px var(--accent-ring); border-color: var(--accent); }
+.select.small { padding: 8px 10px; font-size: 14px; min-width: 56px; }
+
+/* ===================== Panel blocks ===================== */
+.panel-block { margin-top: 16px; width: 100%; }
+.panel-block.small-calendar { overflow-x: auto; }
+.muted-title { color: var(--accent); font-size: 1rem; font-weight: 700; }
+.muted-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.inline-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Buttons */
+.btn-primary {
+  background: var(--accent-2);
+  color: #fff; border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--btn-radius); padding: 8px 14px; font-weight: 800;
+  box-shadow: 0 2px 8px rgba(2, 6, 23, 0.08); cursor: pointer;
+}
+.btn-primary:hover { filter: brightness(.98); }
+.btn-outline {
+  background: #fff; color: var(--accent);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: var(--btn-radius); padding: 8px 14px; font-weight: 800;
+  box-shadow: 0 1px 4px rgba(2, 6, 23, 0.06); cursor: pointer;
+}
+.btn-outline:hover { box-shadow: 0 4px 12px rgba(2,6,23,.06); }
+
+/* FAB */
+.mentor-reset-fab { position: absolute; right: 14px; bottom: 10px; }
+.mentor-reset-fab .btn-outline { margin-top: 0; }
+
+/* ===================== Calendar controls ===================== */
+.calendar-controls {
+  display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 8px;
+}
+.nav-btn { background: transparent; border: 0; font-size: 16px; color: var(--muted); cursor: pointer; padding: 8px; border-radius: 8px; }
+.nav-btn:hover { background: rgba(2,6,23,.03); }
+.month-label { font-weight: 700; color: #0f172a; font-size: .95rem; }
+
+/* ===================== Calendar ===================== */
+.mac-calendar { width: 100%; border-collapse: collapse; table-layout: fixed; background: transparent; }
+.mac-calendar thead th { font-size: 12px; color: var(--muted); padding: 6px; text-align: center; font-weight: 700; }
+.mac-calendar td { width: 14%; padding: 6px; vertical-align: top; }
+.date-btn {
+  width: 100%; border: 0; background: transparent; text-align: left; padding: 10px; border-radius: 10px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center; transition: all .14s ease;
+}
+.date-btn:hover {
+  background: linear-gradient(90deg, rgba(59,130,246,.04), rgba(29,78,216,.02));
+  transform: translateY(-2px); box-shadow: 0 6px 18px rgba(17,24,39,.04);
+}
+.day { font-weight: 800; color: #0f172a; font-size: .98rem; }
+
+/* Calendar states */
+.cal-cell.selected .date-btn {
+  background: linear-gradient(90deg, rgba(29,78,216,.06), rgba(59,130,246,.04));
+  box-shadow: inset 0 0 0 1px rgba(29,78,216,.08);
+}
+.cal-cell.disabled .date-btn { opacity: .4; cursor: not-allowed; }
+.cal-cell.disabled .day { color: #94a3b8; }
+.cal-cell.disabled .date-btn:hover { background: transparent; transform: none; box-shadow: none; }
+.cal-cell.closed-fixed .date-btn { opacity: .45; }
+
+.base-days-info { margin-top: 12px; font-size: 13px; color: #6b7280; }
+
+/* ===================== Mentoring grid ===================== */
+.mentoring-grid {
+  display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; row-gap: 12px;
+  align-items: end; width: 100%; margin-top: 10px;
+}
+.selects-wrapper { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.time-label { font-size: 12px; color: #6b7280; margin-top: .5rem; }
+.selects-row { display: flex; gap: 0; align-items: center; width: 100%; margin-top: 6px; }
+.selects-row .select.small {
+  flex: 1 1 0; border-radius: 0; border: 1px solid rgba(15,23,42,.06);
+  background: linear-gradient(180deg,#fff,#fbfdff); padding: 8px 10px; position: relative; z-index: 1;
+}
+.selects-row .select.small:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+.selects-row .select.small:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; margin-left: -1px; z-index: 2; }
+.selects-row .select.small:not(:first-child):not(:last-child) { margin-left: -1px; z-index: 1; }
+.selects-row .select.small:focus { z-index: 3; }
+
+/* ===================== Text bits ===================== */
+.inline-message { margin-top: 1rem; font-weight: 500; font-size: .9rem; color: var(--muted); }
+.course-title { margin: 0 0 12px 0; font-weight: 800; color: #1e3a8a; }
+.date-section { margin-bottom: 1.5rem; }
+.date-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2rem; }
+.date-and-weekday { display: flex; gap: 12px; align-items: baseline; }
+.date-text { font-weight: 800; color: #0f172a; font-size: 1rem; }
+.weekday { color: var(--muted); font-weight: 700; font-size: .95rem; }
+
+.toggle-row { margin-top: 18px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toggle-label { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 1rem; color: #0f172a; }
+.toggle-input { width: 0; height: 0; opacity: 0; position: absolute; }
+.toggle-switch {
+  display: inline-block; width: 44px; height: 24px; background: #e6eefc; border-radius: 999px;
+  position: relative; transition: background .12s; box-shadow: 0 2px 8px rgba(29,78,216,.06) inset;
+}
+.toggle-switch.on { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.toggle-knob {
+  position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 999px; background: #fff;
+  transition: left .12s; box-shadow: 0 2px 8px rgba(2,6,23,.08);
+}
+.toggle-switch.on .toggle-knob { left: 23px; }
+.toggle-disabled-text { color: #9ca3af; font-size: 13px; }
+.bookings-header { font-size: 1rem; color: var(--accent); margin-bottom: 8px; font-weight: 800; }
+.toggle-disabled-text.below-toggle { margin-top: 8px; display: block; }
+
+.mentoring-in-bookings { margin-bottom: 12px; }
+.mentoring-in-bookings .muted-title { margin-top: 0; }
+
+.base-days-limit { margin-top: 6px; font-size: 12.5px; color: #475569; }
+
+/* ===================== Editing lock visuals ===================== */
+.nav-btn:disabled,
+.btn-ghost:disabled,
+.btn-outline:disabled,
+.btn-primary:disabled,
+.select:disabled {
+  opacity: .5; cursor: not-allowed; pointer-events: none;
+}
+.date-btn.locked { cursor: not-allowed; opacity: .6; }
+.edit-lock-note {
+  margin-top: 8px; font-size: 12.5px; color: #475569;
+  background: #f1f5f9; border: 1px solid rgba(15,23,42,.06);
+  padding: 8px 10px; border-radius: 8px;
+}
+
+/* ===================== Responsive ===================== */
+@media (max-width: 980px) {
+  .mac-body { flex-direction: column; }
+  .mac-left, .mac-right-stack { width: 100%; min-width: 0; max-width: none; }
+  .bookings-card { width: 100%; min-width: 0; margin-top: 0; }
+  .bookings-card.has-bottom-action { padding-bottom: 52px; }
+  .mentor-reset-fab { right: 12px; bottom: 8px; }
+}
+
+/* ===================== Mini confirm modal ===================== */
+.mini-modal-overlay {
+  position: fixed; inset: 0; background: rgba(2,6,23,.45);
+  display: flex; align-items: center; justify-content: center; z-index: 5100; padding: 22px; overflow: hidden;
+}
+.mini-modal {
+  width: 520px; max-width: 96%; max-height: calc(100dvh - 44px);
+  overflow: auto; -webkit-overflow-scrolling: touch;
+  background: #fff; border: 1px solid rgba(226,232,240,.8);
+  border-radius: 14px; box-shadow: 0 22px 48px rgba(2,6,23,.18); padding: 1.5rem;
+}
+.mini-modal-title { margin: 0 0 1.5rem 0; font-weight: 800; color: #1e3a8a; font-size: 1.1rem; }
+.mini-modal-text { margin: 0 0 14px 0; color: #334155; line-height: 1.5; font-size: .95rem; }
+.mini-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.5rem; }
+.mini-modal .btn-ghost {
+  padding: 8px 12px; border-radius: 10px; background: transparent;
+  border: 1px solid rgba(15,23,42,.2); cursor: pointer;
+}
+.mini-modal .btn-ghost:hover { box-shadow: 0 2px 10px rgba(2,6,23,.06); }
+.mini-modal .btn-danger {
+  padding: 8px 14px; border-radius: 10px; border: 1px solid #d23838;
+  background: #d23838; color: #fff; font-weight: 700; cursor: pointer;
+}
+.mini-modal .btn-danger:hover { filter: brightness(0.98); }
+
+/* Overlay fade-in */
+.mac-overlay { animation: fadeInBg .25s ease forwards; }
+@keyframes fadeInBg { from { background: rgba(2,6,23,0);} to { background: rgba(2,6,23,.45);} }
+
+/* Panel scale/slide-in */
+.mac-panel { opacity: 0; transform: translateY(-12px) scale(0.97); animation: modalIn .3s ease forwards; }
+@keyframes modalIn { to { opacity: 1; transform: translateY(0) scale(1);} }
+
+/* Ghost-styled confirm button: blue tint */
+.btn-ghost.btn-confirm {
+  background: #2563eb; /* blue-600 */
+  color: #fff;
+  border-color: #2563eb;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.btn-ghost.btn-confirm:hover {
+  background: #1d4ed8; /* blue-700 */
+   color: #fff;
+  border-color: #1d4ed8;
+}
+
+.btn-ghost.btn-confirm:active {
+  background: #1e40af; /* blue-800 */
+   color: #fff;
+  border-color: #1e40af;
+}
+
+.btn-ghost.btn-confirm:focus-visible {
+  outline: 2px solid #93c5fd; /* accessible focus ring */
+  outline-offset: 2px;
+}

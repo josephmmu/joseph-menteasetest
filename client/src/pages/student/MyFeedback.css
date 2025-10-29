@@ -1,0 +1,251 @@
+/* === MyFeedback.css (updated) === */
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.tab-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #64748b;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.tab-button.active {
+  color: #1e3a8a;
+  border-color: #1e3a8a;
+}
+
+/* Shared list + layout (reuse schedule styles) */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow: visible;
+}
+.schedule-info { margin-top: -1rem; }
+.schedule-info .date {
+  font-weight: 700;
+  color: #1e3a8a;
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.schedule-info .subject {
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.schedule-info .mentor {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bottom-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Topic pill picks the accent */
+.topic {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.6rem 0.8rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-left: 3px solid var(--accent, #6366f1);
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: max-content;
+}
+
+/* === Feedback card with subject accent (top border) === */
+.feedback-card {
+  position: relative;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  animation: fadeInUp 0.6s ease forwards;
+  transition: box-shadow .2s ease, transform .2s ease, background-color .2s ease;
+}
+.feedback-card.is-colored { border-top: 4px solid var(--accent, #1d4ed8); }
+.feedback-card:hover {
+  z-index: 10;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(30, 58, 138, 0.15);
+}
+.feedback-card.is-colored:hover { border-color: var(--accent, #1d4ed8); }
+
+/* Program/year chip (scoped so it doesn't bleed to other pages) */
+.feedback-card .year-chip {
+  position: absolute;
+  top: 13px;
+  right: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--accent, #1d4ed8) 15%, white 85%);
+  color: var(--accent, #1d4ed8);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: .2px;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px 0 0 8px;
+  pointer-events: none;
+}
+
+/* Keep topic accent inside colored cards */
+.feedback-card.is-colored .topic {
+  border-left: 3px solid var(--accent, #1d4ed8);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+/* --- Primary action used for "Give Feedback" (kept as-is) --- */
+.join-btn {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: none;
+  margin: 0;
+  align-self: flex-start;
+  border-radius: 8px;
+  padding: 0.7rem 1.5rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.join-btn:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+}
+.feedback-card.is-colored .join-btn {
+  background: var(--accent, #1d4ed8);
+  border: 1px solid var(--accent, #1d4ed8);
+}
+.feedback-card.is-colored .join-btn:hover,
+.feedback-card.is-colored .join-btn:focus {
+  filter: brightness(1.15);
+  box-shadow: 0 0 0 3px var(--accentRing, rgba(59,130,246,.25));
+  transform: translateY(-1px);
+}
+
+/* --- NEW: Unique "View Feedback" button (fb-view-btn) --- */
+.fb-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 18px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+.fb-view-btn:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+}
+/* Accent version on colored cards (mirrors My Schedule behavior) */
+.feedback-card.is-colored .fb-view-btn {
+  background: var(--accent, #1d4ed8);
+  border: 1px solid var(--accent, #1d4ed8);
+  color: #fff;
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.feedback-card.is-colored .fb-view-btn:hover,
+.feedback-card.is-colored .fb-view-btn:focus {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--accentRing, rgba(0, 0, 0, 0.08));
+}
+
+/* Empty state */
+.empty-msg {
+  font-size: 1rem;
+  color: #94a3b8;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+/* Toast in this page */
+.toast-success {
+  position: fixed;
+  top: 4.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  z-index: 2000;
+  box-shadow: 0 4px 12px rgba(0,0,0,.1);
+}
+
+/* Anim */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bottom-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+  }
+  .topic {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+  .join-btn,
+  .fb-view-btn {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    text-align: center;
+  }
+  .feedback-card .year-chip {
+    font-size: 0.65rem;
+    top: 3px;
+    background: none;
+  }
+}

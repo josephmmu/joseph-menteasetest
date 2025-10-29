@@ -1,0 +1,349 @@
+/* Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+/* Modal container */
+.modal-content {
+  background: #fff;
+  padding: 1.75rem;
+  border-radius: 16px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(30, 58, 138, 0.25);
+  animation: fadeIn 0.25s ease;
+  border: 1px solid #e2e8f0;
+  position: relative;
+}
+
+/* Ensure this modal’s content is left-aligned by default */
+.mentor-cancel .modal-content { text-align: left; }
+
+/* Headings & paragraphs */
+.modal-content h2 {
+  margin: 0 0 0.75rem 0;
+  color: #1e3a8a;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+.modal-content p {
+  margin: 0.15rem 0;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+/* Box sizing */
+.modal-content,
+.modal-content * {
+  box-sizing: border-box;
+}
+
+/* Form layout */
+.modal-content form {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+/* Stretch children so they don’t center-shrink under parent alignment */
+.mentor-cancel .modal-content form {
+  justify-items: stretch;
+  align-items: stretch;
+}
+
+/* Labels and controls */
+.label {
+  display: block;
+  margin: 0 0 0.35rem 0;
+  font-weight: 600;
+  color: #1e3a8a;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  margin: 0;
+}
+
+/* Use default (inherited) font for placeholder text */
+.modal-content textarea::placeholder,
+.modal-content input::placeholder {
+  font-family: inherit;
+  font-style: normal;
+}
+
+.modal-content input:focus,
+.modal-content select:focus,
+.modal-content textarea:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+}
+
+/* grid helpers */
+.row {
+  margin-top: 0.75rem;
+}
+
+/* hint, full-row */
+.hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+.row.full {
+  grid-column: 1 / -1;
+}
+
+/* Full-width rows inside this modal */
+.mentor-cancel .modal-content .row.full { width: 100%; }
+
+/* actions */
+.modal-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+/* Base button */
+.btn {
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.05s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* Center the label inside certain buttons without changing button alignment */
+.btn--center-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Ghost / neutral */
+.btn-ghost {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+.btn-ghost:hover {
+  background: #e2e5e8;
+}
+
+/* PRIMARY — flat color (no gradient) */
+.btn-primary {
+  background: #1e3a8a;
+  color: #fff;
+  border-color: transparent;
+}
+.btn-primary:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+/* disabled styling for primary confirm */
+.btn[disabled],
+.btn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  pointer-events: none;
+}
+
+/* textarea */
+.modal-content textarea {
+  min-height: 3rem;
+  resize: vertical;
+}
+
+/* tip bubble */
+.tip-wrapper.top-right {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.info-icon-svg {
+  width: 20px;
+  height: 20px;
+  opacity: 0.9;
+  transition: opacity 0.15s ease;
+  fill: #1e3a8a;
+}
+.tip-wrapper:hover .info-icon-svg {
+  opacity: 1;
+}
+
+.tip-text {
+  position: absolute;
+  top: 125%;
+  right: 0;
+  width: max-content;
+  max-width: 280px;
+  background: #1e3a8a;
+  color: #fff;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.35);
+  z-index: 6000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.tip-text::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 8px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent #1e3a8a transparent;
+}
+.tip-wrapper:hover .tip-text {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* checkbox */
+.checkbox-row {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  justify-content: flex-start !important; /* ensure left alignment even if parent is centered */
+}
+.mentor-cancel .modal-content .checkbox-row { width: 100%; }
+.checkbox-row input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.checkbox-label {
+  display: inline-block !important;
+  margin: 0;
+  font-weight: 500;
+  color: #1e3a8a;
+  font-size: 0.92rem;
+  text-align: left;
+  line-height: 1.4;
+  flex: 1 1 auto;
+}
+
+/* Force left alignment inside this modal variant */
+.mentor-cancel .modal-content form,
+.mentor-cancel .modal-content .row.full,
+.mentor-cancel .modal-content .label,
+.mentor-cancel .modal-content .checkbox-row,
+.mentor-cancel .modal-content .checkbox-label {
+  text-align: left !important;
+}
+
+/* Make label and textarea explicitly occupy full width */
+.mentor-cancel .modal-content .label { display: block; width: 100%; }
+.mentor-cancel .modal-content textarea { width: 100%; }
+
+/* animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Mobile (<=520px): keep modal centered + constant safe bottom gap under buttons ===== */
+@media (max-width: 520px) {
+  /* Center this modal variant */
+  .mentor-cancel.modal-overlay {
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 12px; /* edge gutter */
+  }
+
+  .mentor-cancel .modal-content {
+    --bottom-gap: 0.5rem; /* space below buttons stays constant as screen shrinks */
+    width: 100%;
+    max-width: 520px;
+    max-height: calc(100dvh - 24px); /* use viewport height */
+    height: auto; /* let content define height */
+    display: block; /* avoid flex-based scroll containers */
+    border-radius: 12px;
+    overflow: visible; /* no inner scroll */
+    padding: 1rem; /* compact padding on phones */
+  }
+
+  /* Make the content (form) scroll so footer can stick */
+  .mentor-cancel .modal-content form {
+    display: block; /* normal flow */
+    overflow: visible; /* no inner scroll */
+    padding-right: 0; /* no scrollbar gutter needed */
+  }
+
+  /* If there’s no form (<24h state), let body scroll */
+  .mentor-cancel .modal-content:not(:has(form)) {
+    overflow: visible; /* no inner scroll */
+  }
+
+  /* Sticky footer: keep constant gap under buttons */
+  .mentor-cancel .modal-actions {
+    position: static; /* normal flow; avoids creating a scroll container */
+    background: #fff;
+    padding-top: 0.75rem;
+    padding-bottom: 0.25rem; /* small breathing room */
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+    z-index: 1;
+  }
+
+  /* Hide scrollbars visually */
+  .mentor-cancel .modal-content form::-webkit-scrollbar {
+    display: none;
+  }
+  .mentor-cancel .modal-content::-webkit-scrollbar {
+    display: none;
+  }
+  .mentor-cancel .modal-content {
+    scrollbar-width: auto;
+  }
+}
+
+/* Ensure button contents are centered in action area too */
+.modal-content .modal-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem;
+}

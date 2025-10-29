@@ -1,0 +1,579 @@
+/* src/pages/student/StudentDashboard.css */
+
+/* =======================================
+  Base Layout
+  ======================================= */
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: "Inter", sans-serif;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  margin: 0rem;
+}
+
+.layout-container {
+  display: flex;
+  flex: 1;
+}
+
+/* Main Layout */
+.main-layout {
+  display: flex;
+  flex: 1;
+}
+
+.dashboard-main {
+  flex: 1;
+  padding: 2rem 3rem;
+  background: transparent;
+  overflow-y: auto;
+}
+
+.section {
+  margin-bottom: 4.9rem;
+}
+
+.section h2 {
+  font-size: 1.6rem;
+  margin-bottom: 2rem;
+  color: #1e3a8a;
+  font-weight: 700;
+  position: relative;
+  padding-bottom: 0.5rem;
+}
+
+.section h2::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  border-radius: 2px;
+}
+
+/* =======================================
+  Card Grid & Card Base
+  ======================================= */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  justify-content: center;
+  max-width: calc(6 * 280px + 5 * 1.5rem);
+  margin: 0 auto;
+}
+
+.card {
+  display: grid;
+  flex-direction: column;
+  flex: 1 1 100%;
+  max-width: 100%;
+  padding: 1.8rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  min-height: 200px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(30, 58, 138, 0.15);
+}
+
+/* Card content pieces */
+.card .subject-title {
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-top: -0.5rem;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.3;
+}
+
+.card .mentor-name {
+  color: #64748b;
+  margin-top: -0.9rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 0.8rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 6px;
+}
+
+/* My Subjects: show accent-colored left border on the mentor chip */
+.subjects-section .card .mentor-name {
+  border-left: 3px solid var(--accent, #6366f1);
+  padding-left: 0.6rem;
+}
+
+/* Buttons */
+.card .action-btn,
+.card .action-btn:hover,
+.card .action-btn:focus {
+  text-decoration: none;
+}
+
+.card .action-btn {
+  margin-top: auto;
+  padding: 0.7rem 1.5rem;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: 100%;
+  display: block;
+  box-sizing: border-box;
+  text-align: center;
+  overflow-wrap: anywhere;
+  flex-shrink: 0;
+}
+
+.card:not(.is-colored) .action-btn:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+}
+
+/* =======================================
+  Sessions / Notes / Variants
+  ======================================= */
+.card.upcoming-session {
+  text-align: left;
+  position: relative;
+}
+.card.upcoming-session .action-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.card.upcoming-session .session-date {
+  font-weight: 700;
+  color: #1e3a8a;
+  font-size: 1rem;
+  margin: 0 0 0.8rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card.upcoming-session .session-subject {
+  color: #475569;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Topic — make the value normal weight; label will be styled below */
+.card.upcoming-session .session-topic {
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 400; /* was 600 */
+  margin: 0.2rem 0 0.8rem 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+/* Topic label ("Topic:") — same color as date/time and bold */
+.session-topic .row-label {
+  color: #767c8d; /* match .session-date color */
+  font-weight: 700;
+}
+
+/* People line for Upcoming cards (Mentor or Students) — keep soft chip */
+.card.upcoming-session .session-people {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent, #1d4ed8);
+}
+
+/* Keep other sections compact */
+.kpi-section
+  .quickstat-section
+  .sessionsuccess-section
+  .subjects-section
+  .card {
+  gap: 0rem;
+}
+
+.notes-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 1rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.notes-card .card-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.notes-card .notes-date {
+  font-weight: 700;
+  color: #1e3a8a;
+  font-size: 1rem;
+  margin: 0 0 0.6rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notes-card .notes-subject {
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 0.6rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notes-card .notes-mentor {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notes-card .note-preview {
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  font-style: italic;
+  padding: 1rem 1.4rem 1rem 1.75rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 8px;
+  position: relative;
+  margin: 0 0 1.5rem 0;
+  border-left: 4px solid var(--accent, #1d4ed8);
+}
+
+.notes-card .note-preview::before {
+  content: '"';
+  font-size: 2rem;
+  position: absolute;
+  top: -0.2rem;
+  left: 0.55rem;
+  font-family: serif;
+}
+.notes-card .note-preview::after {
+  content: '"';
+  font-size: 2rem;
+  position: absolute;
+  bottom: 0.2rem;
+  right: 0.55rem;
+  font-family: serif;
+}
+
+.notes-left {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.notes-card .action-btn {
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.view-notes-container {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.view-notes-btn:hover {
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+}
+
+.empty-msg {
+  margin-left: -9rem;
+}
+
+/* Decorative example */
+.card:nth-child(1)::before {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+}
+.card:nth-child(2)::before {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+.card:nth-child(3)::before {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+/* =======================================
+  Responsive
+  ======================================= */
+@media (max-width: 1250px) {
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  .card {
+    max-width: 100%;
+  }
+  .note-preview {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 1152px) {
+  .dashboard-main {
+    padding: 1.5rem 1rem;
+  }
+  .card-grid {
+    gap: 1rem;
+  }
+  .card {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .notes-card {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .notes-card .card-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+    flex: 1;
+  }
+  .notes-card .note-preview {
+    width: 100%;
+    box-sizing: border-box;
+    white-space: normal;
+    overflow-wrap: break-word;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .notes-card .action-btn {
+    width: 100%;
+    display: block;
+    box-sizing: border-box;
+    margin: 0;
+    margin-top: auto;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .view-notes-container {
+    flex-shrink: 0;
+    margin-left: 0;
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .subjects-section .action-btn,
+  .sessions-section .action-btn,
+  .notes-section .action-btn {
+    width: 100%;
+    text-align: center;
+    white-space: normal;
+    display: block;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 768px) {
+  .section h2 {
+    margin: 0 -2rem;
+  }
+  .card-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .card {
+    margin-left: -2rem;
+    margin-right: -2rem;
+    margin-top: 1rem;
+  }
+  .schedule-card,
+  .feedback-card {
+    margin-left: -2rem;
+    margin-right: -2rem;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
+  }
+}
+
+/* =======================================
+  Animation
+  ======================================= */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.card,
+.notes-card {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+/* =======================================
+  SUBJECT-COLORED OVERRIDES (keep LAST)
+  ======================================= */
+.section .card.is-colored:hover,
+.section .card.is-colored:focus-within {
+  border-color: var(--accent, #1d4ed8) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.section .card.is-colored .action-btn {
+  background: var(--accent, #1d4ed8) !important;
+  border: 1px solid var(--accent, #1d4ed8) !important;
+  color: #fff !important;
+  transition: filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.section .card.is-colored .action-btn:hover,
+.section .card.is-colored .action-btn:focus {
+  filter: brightness(1.15);
+  box-shadow: 0 0 0 3px var(--accentRing, rgba(59, 130, 246, 0.25)) !important;
+}
+
+/* Remove old topic accent override entirely */
+/* .section .card.is-colored .session-topic { ... } */
+
+.section .card.is-colored .note-preview {
+  border-left: 4px solid var(--accent, #1d4ed8) !important;
+}
+
+/* Notes / Upcoming sessions hover borders */
+.notes-card.is-colored:hover,
+.card.upcoming-session.is-colored:hover {
+  border-color: var(--accent, #1d4ed8) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* =======================================
+   Skeleton Loading (My Subjects)
+   ======================================= */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 20%, #e5e7eb 40%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.card.skeleton-card {
+  min-height: 200px;
+  pointer-events: none;
+  transition: none;
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+}
+
+.card.skeleton-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Simulated title line */
+.skeleton-line.title {
+  height: 18px;
+  width: 70%;
+  border-radius: 6px;
+  margin: 0 0 1.2rem 0;
+  overflow: hidden;
+}
+.skeleton-line.title::before {
+  content: "";
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+/* Simulated "mentor chip" row */
+.skeleton-chip {
+  height: 40px;
+  width: 55%;
+  border-radius: 8px;
+  margin: -0.6rem 0 1.2rem 0;
+  background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+/* Simulated button */
+.skeleton-btn {
+  height: 44px;
+  width: 100%;
+  border-radius: 8px;
+  margin-top: auto;
+  background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+/* Keep grid spacing consistent while loading */
+.mysubjects-grid .skeleton-card {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+}

@@ -1,0 +1,193 @@
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.filter-dropdown {
+  padding: 0.5rem 0.75rem;
+  padding-right: 2.5rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: #fff;
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 6"%3E%3Cpath fill="%23334155" d="M0 0l5 6 5-6z"/%3E%3C/svg%3E');
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #334155;
+  width: 15rem;
+  margin-top: 1rem;
+}
+
+.excerpt {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.datetime {
+  color: #475569;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  margin-bottom: 0rem;
+}
+
+.bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.session-notes-preview {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-left: 3px solid #6366f1; /* default; accent override comes later */
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+  font-size: 0.88rem;
+  color: #475569;
+  line-height: 1.5;
+  max-width: 70%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.card-subject-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e3a8a;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0rem;
+  margin-top: 0.5rem;
+}
+
+.view-full-notes-btn {
+  background: linear-gradient(
+    135deg,
+    #1e3a8a 0%,
+    #1d4ed8 100%
+  ); /* default; accent override comes later */
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 1.5rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  align-self: auto;
+  text-decoration: none;
+}
+
+.view-full-notes-btn:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+}
+
+.year-chip {
+  position: absolute;
+  top: 13px;
+  right: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--accent, #1d4ed8) 15%, white 85%);
+  color: var(--accent, #1d4ed8);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px 0 0 8px;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .bottom-row {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 0.8rem;
+  }
+
+  .session-notes-preview {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .card-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .datetime {
+    order: -1;
+  }
+
+  .filter-dropdown {
+    width: 8rem;
+    font-size: 0.85rem;
+    margin-top: -0.1rem;
+    margin-bottom: 1.5rem;
+    margin-right: -2rem;
+  }
+
+  .view-full-notes-btn {
+    width: 100%;
+    margin-top: 0.2rem;
+    padding: 0.8rem 1rem;
+    box-sizing: border-box;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .year-chip {
+    font-size: 0.65rem;
+    top: 3px;
+    background: none;
+  }
+}
+
+/* =======================================
+   SUBJECT-COLORED OVERRIDES
+   ======================================= */
+
+/* Accent top strip like dashboard */
+.schedule-card.is-colored {
+  border-top: 4px solid var(--accent, #1d4ed8);
+}
+
+/* Card hover border uses accent and wins cascade */
+.schedule-card.is-colored:hover,
+.schedule-card.is-colored:focus-within {
+  border-color: var(--accent, #1d4ed8);
+}
+
+/* Preview pill uses accent on the left border */
+.schedule-card.is-colored .session-notes-preview {
+  border-left: 3px solid var(--accent, #1d4ed8);
+}
+
+/* Action button adopts accent; hover uses brightness (good for light/dark) */
+.schedule-card.is-colored .view-full-notes-btn {
+  background: var(--accent, #1d4ed8);
+  border: 1px solid var(--accent, #1d4ed8);
+  color: #fff;
+  transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.schedule-card.is-colored .view-full-notes-btn:hover,
+.schedule-card.is-colored .view-full-notes-btn:focus {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px var(--accentRing, rgba(59, 130, 246, 0.25));
+}

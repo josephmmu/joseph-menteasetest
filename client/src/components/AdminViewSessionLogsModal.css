@@ -1,0 +1,232 @@
+/* Main modal styles */
+.admin-session-logs-modal .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.admin-session-logs-modal .modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 16px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-session-logs-modal .modal-header {
+  margin-bottom: 16px;
+}
+
+.admin-session-logs-modal .modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.admin-session-logs-modal .modal-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+.admin-session-logs-modal .modal-footer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Session list styles */
+.admin-session-logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+}
+
+.admin-session-logs-list li {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Session card styles */
+.admin-session-card {
+  position: relative;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.admin-session-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Session info grid */
+.admin-session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-session-date-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.admin-session-date {
+  margin: 0;
+  font-weight: 700;
+  color: #1e3a8a;
+  font-size: 0.95rem;
+}
+
+.admin-session-subject {
+  margin: 0;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.admin-session-students {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.admin-session-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.admin-session-topic {
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Status badge styles */
+.admin-session-status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .admin-session-logs-modal .modal-content {
+    margin: 8px;
+    padding: 16px;
+  }
+  
+  /* Keep buttons in a row for mobile */
+  .admin-session-logs-modal .modal-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 8px; /* Slightly smaller gap for mobile */
+  }
+  
+  .admin-session-logs-list {
+    align-items: center;
+  }
+  
+  .admin-session-logs-list li {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .admin-session-card {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 !important;
+  }
+  
+  /* Mobile: Status badge on the left, above date */
+  .admin-session-date-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  
+  .admin-session-status-badge {
+    align-self: flex-start;
+    order: -1; /* Puts status badge above date */
+  }
+  
+  .admin-session-date {
+    align-self: flex-start;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 769px) {
+  .admin-session-logs-modal .modal-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+  
+  .admin-session-logs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  
+  /* Desktop: Status badge on the right, same row as date */
+  .admin-session-date-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .admin-session-status-badge {
+    align-self: flex-end;
+    order: 1; /* Puts status badge after date */
+  }
+  
+  .admin-session-date {
+    margin: 0;
+    font-weight: 700;
+    color: #1e3a8a;
+    font-size: 0.95rem;
+    order: 0; /* Puts date first */
+  }
+}
