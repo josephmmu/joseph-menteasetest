@@ -1,0 +1,31 @@
+services:
+  # === Backend API ===
+  - type: web
+    name: server
+    env: docker
+    region: singapore             # pick closest to you
+    dockerfilePath: ./server/Dockerfile
+    autoDeploy: true
+    envVars:
+      # Render doesn't read env_file; add your .env keys here or in the dashboard
+      - key: PORT
+        value: "5000"
+      # examples:
+      # - key: DATABASE_URL
+      #   sync: false
+      # - key: JWT_SECRET
+      #   sync: false
+    healthCheckPath: /health      # change/remove if you don't have this route
+
+  # === Frontend (static build) ===
+  - type: web
+    name: client
+    env: docker
+    region: singapore
+    dockerfilePath: ./client/Dockerfile
+    autoDeploy: true
+    envVars:
+      # IMPORTANT: Browser cannot reach the API via private name.
+      # After the first deploy, set this to your real server URL (e.g., https://server.onrender.com).
+      - key: VITE_API_BASE_URL     # or REACT_APP_API_URL if CRA
+        value: https://server.onrender.com
