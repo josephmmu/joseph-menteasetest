@@ -13,7 +13,7 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: APP_BASE_URL
-        value: https://YOUR-CLIENT-URL.onrender.com
+        value: https://client-joseph-menteasetest.onrender.com
       - key: EMAIL_NOTIFICATIONS_DISABLED
         value: "false"
       - key: SMTP_HOST
@@ -38,6 +38,6 @@ services:
     autoDeploy: true
     envVars:
       - key: REACT_APP_API_URL
-        value: https://YOUR-SERVER-URL.onrender.com
+        value: https://backend-joseph-menteasetest.onrender.com
       - key: REACT_APP_GOOGLE_CLIENT_ID
         sync: false
