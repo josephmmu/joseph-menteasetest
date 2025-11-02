@@ -8,6 +8,11 @@ import loginBg from '../assets/login-bg.png';
 import { useRef, useState } from 'react';
 
 export default function Login() {
+  const API = (
+    process.env.REACT_APP_API_URL ||
+    process.env.REACT_APP_API_BASE_URL ||
+    ''
+  ).replace(/\/+$/, '');
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const [warning, setWarning] = useState('');
@@ -42,7 +47,7 @@ export default function Login() {
       // Determine role (or get it back from your API/JWT)
       const derivedRole = email.includes('lr.') ? 'student' : 'mentor';
 
-      const res = await axios.post('http://localhost:5001/api/auth/google', {
+      const res = await axios.post(`${API}/api/auth/google`, {
         email, name, googleId, photoUrl: picture, role: derivedRole
       });
 

@@ -33,6 +33,11 @@ const INITIAL_STATE = {
 
 // System Settings Provider Component
 export const SystemSettingsProvider = ({ children }) => {
+  const API = (
+    process.env.REACT_APP_API_URL ||
+    process.env.REACT_APP_API_BASE_URL ||
+    ''
+  ).replace(/\/+$/, '');
   const [systemSettings, setSystemSettings] = useState(INITIAL_STATE);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +52,7 @@ export const SystemSettingsProvider = ({ children }) => {
       }
 
       const response = await fetch(
-        "http://localhost:5001/api/academic-terms/active",
+        `${API}/api/academic-terms/active`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
