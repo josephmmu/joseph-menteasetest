@@ -8,7 +8,7 @@
   border-radius: 6px;
   font-size: 1.05rem;
   font-weight: 500;
-  z-index: 2000;
+  z-index: 7000; /* above modal overlays */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   border: 1px solid transparent;
   animation: toastFade 3s ease-in-out;

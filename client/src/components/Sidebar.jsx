@@ -23,7 +23,6 @@ export default function Sidebar({ activePage }) {
       return [
         { label: "Dashboard", path: "/admin-dashboard" },
         { label: "User Management", path: "/admin/users" },
-        { label: "Session Analytics", path: "/admin/analytics" },
         { label: "Course Management", path: "/admin/courses" },
         { label: "System Settings", path: "/admin/system-settings" },
       ];

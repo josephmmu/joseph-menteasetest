@@ -23,7 +23,6 @@ import { CourseColorProvider } from "./context/CourseColorContext";
 import { SystemSettingsProvider } from "./context/SystemSettingsContext";
 import AdminUserManagement from "./pages/admin/AdminUserManagement";
 import CourseControl from "./pages/admin/AdminCourseManagement";
-import AdminSessionAnalytics from "./pages/admin/AdminSessionAnalytics";
 import AdminSystemSettings from "./pages/admin/AdminSystemSettings";
 import SessionNotesPopup from "./pages/SessionNotesPopup";
 
@@ -129,14 +128,6 @@ function App() {
               element={
                 <ProtectedRoute roles={["admin"]}>
                   <AdminUserManagement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/analytics"
-              element={
-                <ProtectedRoute roles={["admin"]}>
-                  <AdminSessionAnalytics />
                 </ProtectedRoute>
               }
             />

@@ -1,4 +1,4 @@
-// pages/MySchedule/MySchedule.jsx
+// src/pages/student/MySchedule.jsx
 import React, {
   useState,
   useEffect,
@@ -136,11 +136,84 @@ const formatDateTimeRange = (startISO, endISO, fallbackMinutes = 30) => {
   return `${dateStr} - ${time(start)}–${time(end)}`;
 };
 
+/* Humanize ms for feedback ("Starts in 1h 12m") */
+const humanizeMs = (ms) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const parts = [];
+  if (h) parts.push(`${h}h`);
+  if (m || !h) parts.push(`${m}m`);
+  return parts.join(" ");
+};
+
 /* Ensure https:// prefix for external links */
 const ensureHttp = (url) => {
   const u = String(url || "").trim();
   return /^https?:\/\//i.test(u) ? u : `https://${u}`;
 };
+
+/* ===== ensure a Session Note exists and return current text ===== */
+const MAX_QS_TEXT = 1600;
+async function ensureSessionNote(session) {
+  try {
+    const body = {
+      sessionId: session.sessionId || session.id || session._id,
+      subject: session.subject,
+      section: session.section,
+      mentorName: session.mentor,
+      // keep sending start time to the API for note metadata
+      dateTimeISO: session.startISO || new Date().toISOString(),
+      topic: session.topic || "",
+    };
+    const res = await fetch(`${API}/api/session-notes/ensure`, {
+      method: "POST",
+      headers: tokenHeaders(),
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("ensure failed");
+    const j = await res.json();
+    const note = j?.note || {};
+    return {
+      topics: String(note.topicsDiscussed || "").slice(0, MAX_QS_TEXT),
+      next: String(note.nextSteps || "").slice(0, MAX_QS_TEXT),
+    };
+  } catch (e) {
+    console.warn("[ensureSessionNote] Continuing without prefill:", e?.message);
+    return { topics: "", next: "" };
+  }
+}
+
+function StatusBadge({ kind, reason }) {
+  const [open, setOpen] = useState(false);
+  const label = kind === "cancelled" ? "Cancelled" : "Rescheduled";
+  const hasReason = Boolean(reason && String(reason).trim());
+
+  return (
+    <span
+      className={`status-badge ${kind}`}
+      tabIndex={hasReason ? 0 : -1}
+      aria-haspopup={hasReason ? "true" : undefined}
+      aria-label={hasReason ? `${label}. Why? ${reason}` : label}
+      data-open={open && hasReason ? "true" : "false"}
+      onClick={(e) => {
+        if (!hasReason) return;
+        e.stopPropagation();
+        setOpen((v) => !v);
+      }}
+      onBlur={() => setOpen(false)}
+    >
+      {label}
+      {hasReason && (
+        <span className="status-tip" role="tooltip">
+          <strong className="status-tip__title">Why?</strong>
+          <span className="status-tip__body">{reason}</span>
+        </span>
+      )}
+    </span>
+  );
+}
 
 export default function MySchedule() {
   const [activeTab, setActiveTab] = useState("upcoming");
@@ -162,7 +235,6 @@ export default function MySchedule() {
       toastRafRef.current = 0;
     }
 
-    // Clear existing to restart animation/transitions consistently
     setToast((t) => (t ? { ...t, message: "" } : { id: null, type, message: "" }));
 
     toastRafRef.current = requestAnimationFrame(() => {
@@ -199,7 +271,6 @@ export default function MySchedule() {
   const isMobile = windowWidth <= 1152;
   const { getYearColor, normalizeCourseKey } = useCourseColor();
 
-  /* ========= window + menu handlers ========= */
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
@@ -224,7 +295,6 @@ export default function MySchedule() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuIndex]);
 
-  /* ========= meeting links from localStorage ========= */
   useEffect(() => {
     try {
       const raw = localStorage.getItem("meetingLinks");
@@ -292,19 +362,12 @@ export default function MySchedule() {
     fetchSessions();
   }, [fetchSessions]);
 
-  /* ========= helpers for schedule list ========= */
-  const dateKey = (d) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate()
-    ).padStart(2, "0")}`;
-
   const accentVarsFor = (subject, section) => {
     const key = normalizeCourseKey(`${subject || ""} ${section || ""}`);
     const accent = getYearColor(key);
     return { "--accent": accent, "--accentRing": "rgba(0,0,0,0.08)" };
   };
 
-  // Build a map of course by id for quick lookups
   const courseById = useMemo(() => {
     const m = new Map();
     (allCourses || []).forEach((c) => {
@@ -313,7 +376,6 @@ export default function MySchedule() {
     return m;
   }, [allCourses]);
 
-  // Derive normalized sessions into the UI model the page expects
   const normalizedSessions = useMemo(() => {
     const list = [];
     (rawSessions || []).forEach((s) => {
@@ -378,8 +440,27 @@ export default function MySchedule() {
         studentNames.length > 1 ||
         (fromMembersOnly && studentNames.length >= 1);
 
+      const cancelReason =
+        s.cancellationReason ||
+        s.cancelReason ||
+        s.cancel_note ||
+        s.cancelNote ||
+        s.meta?.cancelReason ||
+        ((s.status || "").toLowerCase() === "cancelled" ? s.reason : "") ||
+        "";
+
+      const rescheduleReason =
+        s.rescheduleReason ||
+        s.rescheduledReason ||
+        s.reschedule_note ||
+        s.rescheduleNote ||
+        s.meta?.rescheduleReason ||
+        ((s.status || "").toLowerCase() === "rescheduled" ? s.reason : "") ||
+        "";
+
       list.push({
         id: s.sessionId || s._id || `${courseId}-${startISO}`,
+        sessionId: s.sessionId || s._id || `${courseId}-${startISO}`,
         date: display,
         startISO,
         endISO,
@@ -395,12 +476,14 @@ export default function MySchedule() {
         meetLink,
         students: studentNames,
         isGroup,
+        cancelReason,
+        rescheduleReason,
+        apiId: s.sessionId || s._id, // used by attendance beacon
       });
     });
     return list;
   }, [rawSessions, courseById, meetingLinks]);
 
-  // Split into upcoming/past
   const { upcomingSorted, pastSorted } = useMemo(() => {
     const now = Date.now();
     const upcoming = [];
@@ -423,7 +506,6 @@ export default function MySchedule() {
     return { upcomingSorted: upcoming, pastSorted: past };
   }, [normalizedSessions]);
 
-  // ===== pagination =====
   const [pageUpcoming, setPageUpcoming] = useState(1);
   const [pagePast, setPagePast] = useState(1);
   const perPage = 6;
@@ -454,24 +536,21 @@ export default function MySchedule() {
   const setPage = (p) => {
     if (activeTab === "upcoming")
       setPageUpcoming(Math.max(1, Math.min(totalPages, p)));
-    else
-      setPagePast(Math.max(1, Math.min(totalPages, p)));
+    else setPagePast(Math.max(1, Math.min(totalPages, p)));
   };
 
   const anyLoading = coursesLoading || sessionsLoading;
 
-  /* ===== live-highlight tick (15s) ===== */
+  // keep “now” fresh for live window detection & countdown hints
   const [nowTs, setNowTs] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNowTs(Date.now()), 15000);
     return () => clearInterval(id);
   }, []);
 
-  /* ====== RESCHEDULE HANDLER ====== */
   const handleReschedule = useCallback(
     async (payload) => {
       try {
-        // Guard — new start must be at least 24h from now
         const MIN_LEAD_MS = 24 * 60 * 60 * 1000;
         const newStartMs = new Date(payload?.startISO || "").getTime();
         if (!Number.isFinite(newStartMs)) {
@@ -514,7 +593,6 @@ export default function MySchedule() {
     [selectedSession, fetchSessions, showToast]
   );
 
-  /* ====== CANCEL HANDLER ====== */
   const handleCancel = useCallback(
     async (payload) => {
       try {
@@ -571,6 +649,26 @@ export default function MySchedule() {
     },
     [selectedSession, fetchSessions, showToast]
   );
+
+  const getPaginationItems = (current, total) => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const base = [];
+    for (let i = 1; i <= total; i++) {
+      if (i === 1 || i === total || Math.abs(i - current) <= 1) base.push(i);
+    }
+    const items = [];
+    let prev = 0;
+    for (const p of base) {
+      if (prev) {
+        const gap = p - prev;
+        if (gap === 2) items.push(prev + 1);
+        else if (gap > 2) items.push("...");
+      }
+      items.push(p);
+      prev = p;
+    }
+    return items;
+  };
 
   return (
     <div className="page-wrapper">
@@ -632,12 +730,15 @@ export default function MySchedule() {
                 list.map((session, i) => {
                   const vars = accentVarsFor(session.subject, session.section);
 
+                  // live window: only true within [start, end)
                   const live =
                     activeTab === "upcoming" &&
                     Number.isFinite(session._startTs) &&
                     Number.isFinite(session._endTs) &&
                     nowTs >= session._startTs &&
                     nowTs < session._endTs;
+
+                  const canJoin = live;
 
                   const program = getProgramFromCode(
                     session.subject,
@@ -652,14 +753,15 @@ export default function MySchedule() {
                   const isCancelled = statusLower === "cancelled";
                   const isRescheduled = statusLower === "rescheduled";
 
-                  // Recording (student view): show button in Past when `recordingUrl` exists
                   const recordingUrl = (session.recordingUrl || "").trim();
                   const hasRecording = !!recordingUrl;
 
                   return (
                     <div
                       key={`${activeTab}-${session.id}-${startIndex + i}`}
-                      className={`schedule-card is-colored ${live ? "is-today" : ""}`}
+                      className={`schedule-card is-colored ${live ? "is-today" : ""} ${
+                        activeTab === "upcoming" && !live ? "dimmed-not-live" : ""
+                      }`}
                       style={vars}
                     >
                       <div
@@ -675,15 +777,12 @@ export default function MySchedule() {
                           {session.date}
 
                           {isCancelled && (
-                            <span
-                              className="status-badge cancelled"
-                              title="This session was cancelled"
-                            >
-                              Cancelled
-                            </span>
+                            <StatusBadge
+                              kind="cancelled"
+                              reason={session.cancelReason}
+                            />
                           )}
 
-                          {/* GROUP label FIRST, then Rescheduled chip */}
                           {session.isGroup && (
                             <>
                               {" "}
@@ -694,12 +793,10 @@ export default function MySchedule() {
                           )}
 
                           {isRescheduled && (
-                            <span
-                              className="status-badge rescheduled"
-                              title="This session was rescheduled"
-                            >
-                              Rescheduled
-                            </span>
+                            <StatusBadge
+                              kind="rescheduled"
+                              reason={session.rescheduleReason}
+                            />
                           )}
                         </p>
 
@@ -718,31 +815,61 @@ export default function MySchedule() {
                             {activeTab === "upcoming" ? (
                               <>
                                 <button
-                                  className="join-btn"
-                                  onClick={() => {
-                                    const url = (session.meetLink || "").trim();
-                                    if (!url) {
-                                      showToast(
-                                        "No meeting link set by mentor yet.",
-                                        "error"
-                                      );
+                                  className="join-btn status-badge"
+                                  data-disabled={!canJoin}
+                                  title={canJoin ? "Join meeting" : undefined}
+                                  tabIndex={0}
+                                  aria-haspopup={!canJoin ? "true" : undefined}
+                                  aria-label={
+                                    !canJoin
+                                      ? (() => {
+                                          const hasTimes =
+                                            Number.isFinite(session._startTs) && Number.isFinite(session._endTs);
+                                          if (!hasTimes) return "Schedule time missing.";
+                                          let msg = `Available only ${formatDateTimeRange(session.startISO, session.endISO)}`;
+                                          if (nowTs < session._startTs) msg += ` • Starts in ${humanizeMs(session._startTs - nowTs)}`;
+                                          else if (nowTs >= session._endTs) msg += " • Ended";
+                                          return `When can I join? ${msg}`;
+                                        })()
+                                      : "JOIN NOW"
+                                  }
+                                  onClick={async () => {
+                                    // HARD GUARDS — show validation toasts
+                                    if (!Number.isFinite(session._startTs) || !Number.isFinite(session._endTs)) {
+                                      showToast("Schedule time is missing. Please contact your mentor.", "error", 4200);
+                                      return;
+                                    }
+                                    if (nowTs < session._startTs) {
+                                      const eta = humanizeMs(session._startTs - nowTs);
+                                      return;
+                                    }
+                                    if (nowTs >= session._endTs) {
+                                      showToast("This session has already ended.", "error", 4200);
                                       return;
                                     }
 
-                                    const now = new Date();
-                                    const safeISO = isNaN(now.getTime())
-                                      ? new Date().toISOString()
-                                      : now.toISOString();
+                                    const url = (session.meetLink || "").trim();
+                                    if (!url) {
+                                      showToast("No meeting link set by mentor yet.", "error");
+                                      return;
+                                    }
 
+                                    // Prefill from existing note (optional)
+                                    const { topics, next } = await ensureSessionNote(session);
+
+                                    // Pass the ACTUAL schedule window to the popup
                                     const qs = new URLSearchParams({
-                                      id: `${normalizeCourseKey(
-                                        `${session.subject} ${session.section}`
-                                      )}__${safeISO}`,
+                                      id: session.sessionId || session.id,
                                       subject: session.subject,
                                       section: session.section,
                                       topic: session.topic || "",
-                                      mentor: session.mentor || "",
-                                      dateTimeISO: safeISO,
+                                      mentorName: session.mentor || "",
+                                      startISO: session.startISO || "",
+                                      endISO: session.endISO || "",
+                                      studentNames: (session.students || []).join(", "),
+                                      initialTopicsDiscussed: topics,
+                                      initialNextSteps: next,
+                                      hideBack: "1",
                                     }).toString();
 
                                     const notesWin = window.open(
@@ -751,17 +878,36 @@ export default function MySchedule() {
                                       "width=560,height=640,left=100,top=100"
                                     );
                                     if (!notesWin) {
-                                      showToast(
-                                        "Please allow pop-ups to open the Session Notes window.",
-                                        "error"
-                                      );
+                                      showToast("Please allow pop-ups to open the Session Notes window.", "error");
                                       return;
                                     }
+
+                                    // Go to meeting
                                     window.location.assign(ensureHttp(url));
                                   }}
                                 >
-                                  JOIN NOW
+                                  <span className="join-btn__label">JOIN NOW</span>
+
+                                  {/* Same bubble as chips; rendered ONLY when not live */}
+                                  {!canJoin && (
+                                    <span className="status-tip" role="tooltip" aria-hidden="true">
+                                      <strong className="status-tip__title">When can I join?</strong>
+                                      <span className="status-tip__body">
+                                        {(() => {
+                                          const hasTimes =
+                                            Number.isFinite(session._startTs) && Number.isFinite(session._endTs);
+                                          if (!hasTimes) return "Schedule time missing.";
+                                          let msg = `Available only ${formatDateTimeRange(session.startISO, session.endISO)}`;
+                                          if (nowTs < session._startTs) msg += ` • Starts in ${humanizeMs(session._startTs - nowTs)}`;
+                                          else if (nowTs >= session._endTs) msg += " • Ended";
+                                          return msg;
+                                        })()}
+                                      </span>
+                                    </span>
+                                  )}
                                 </button>
+
+                                {/* (Not live chip removed) */}
 
                                 <div
                                   className="ms-more-options"
@@ -775,7 +921,6 @@ export default function MySchedule() {
                                         openMenuIndex === i ? null : i;
                                       setOpenMenuIndex(next);
 
-                                      // after it opens, measure to decide drop direction
                                       requestAnimationFrame(() => {
                                         if (next === null) {
                                           setDropUpIndex(null);
@@ -795,7 +940,7 @@ export default function MySchedule() {
                                         const menuH = Math.min(
                                           menu.scrollHeight,
                                           260
-                                        ); // keep in sync with CSS max-height
+                                        );
                                         const gap = 12;
                                         const spaceBelow =
                                           window.innerHeight -
@@ -818,7 +963,11 @@ export default function MySchedule() {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (isRescheduled) {
+                                        const statusLower =
+                                          (session.status || "")
+                                            .toLowerCase()
+                                            .trim();
+                                        if (statusLower === "rescheduled") {
                                           showToast(
                                             "Rescheduling can only be done once.",
                                             "error"
@@ -916,7 +1065,6 @@ export default function MySchedule() {
               )}
             </div>
 
-            {/* Bottom info */}
             {!anyLoading && fullList.length > 0 && (
               <div className="schedule-meta">
                 <span className="schedule-meta__range">
@@ -930,7 +1078,6 @@ export default function MySchedule() {
               </div>
             )}
 
-            {/* Pagination controls */}
             {!anyLoading && totalPages > 1 && (
               <div
                 style={{
@@ -975,64 +1122,37 @@ export default function MySchedule() {
                 </button>
 
                 <div style={{ display: "flex", gap: "0.25rem" }}>
-                  {[...Array(totalPages)].map((_, i) => {
-                    const pageNumber = i + 1;
-                    const isCurrentPage = pageNumber === currentPage;
-                    const showPage =
-                      pageNumber === 1 ||
-                      pageNumber === totalPages ||
-                      Math.abs(pageNumber - currentPage) <= 1;
-
-                    if (!showPage) {
-                      if (pageNumber === 2 && currentPage > 4) {
-                        return (
-                          <span
-                            key={`dots-left-${i}`}
-                            style={{ padding: "0.5rem", color: "#9ca3af" }}
-                          >
-                            ...
-                          </span>
-                        );
-                      }
-                      if (
-                        pageNumber === totalPages - 1 &&
-                        currentPage < totalPages - 3
-                      ) {
-                        return (
-                          <span
-                            key={`dots-right-${i}`}
-                            style={{ padding: "0.5rem", color: "#9ca3af" }}
-                          >
-                            ...
-                          </span>
-                        );
-                      }
-                      return null;
-                    }
-
-                    return (
+                  {getPaginationItems(currentPage, totalPages).map((item, idx) =>
+                    item === "..." ? (
+                      <span
+                        key={`dots-${idx}`}
+                        style={{ padding: "0.5rem", color: "#9ca3af" }}
+                      >
+                        ...
+                      </span>
+                    ) : (
                       <button
-                        key={pageNumber}
-                        onClick={() => setPage(pageNumber)}
-                        aria-current={isCurrentPage ? "page" : undefined}
+                        key={`p-${item}`}
+                        onClick={() => setPage(item)}
+                        aria-current={item === currentPage ? "page" : undefined}
                         style={{
                           padding: "0.5rem 0.75rem",
                           border: "1px solid #d1d5db",
                           borderRadius: "6px",
-                          background: isCurrentPage ? "#3b82f6" : "white",
-                          color: isCurrentPage ? "white" : "#374151",
+                          background: item === currentPage ? "#3b82f6" : "white",
+                          color: item === currentPage ? "white" : "#374151",
                           cursor: "pointer",
                           fontSize: "0.875rem",
                           fontWeight: "500",
                           minWidth: "40px",
                           transition: "all 0.2s ease",
                         }}
-                        title={`Go to page ${pageNumber}`}
+                        title={`Go to page ${item}`}
                       >
-                        {pageNumber}
+                        {item}
                       </button>
-                    );
-                  })}
+                    )
+                  )}
                 </div>
 
                 <button
@@ -1075,8 +1195,19 @@ export default function MySchedule() {
       </div>
 
       <RescheduleSessionModal
+        key={
+          showResched
+            ? (selectedSession?.id ||
+               selectedSession?._id ||
+               selectedSession?.startISO ||
+               selectedSession?.date)
+            : "resched-closed"
+        }
         isOpen={showResched}
-        onClose={() => setShowResched(false)}
+        onClose={() => {
+          setShowResched(false);
+          setSelectedSession(null);
+        }}
         session={selectedSession}
         onReschedule={handleReschedule}
         onSuccess={() => fetchSessions()}
@@ -1084,14 +1215,25 @@ export default function MySchedule() {
         viewerRole="student"
         source="MySchedule"
       />
+
       <CancelBookingModal
+        key={
+          showCancel
+            ? (selectedSession?.id ||
+               selectedSession?._id ||
+               selectedSession?.startISO ||
+               selectedSession?.date)
+            : "cancel-closed"
+        }
         isOpen={showCancel}
-        onClose={() => setShowCancel(false)}
+        onClose={() => {
+          setShowCancel(false);
+          setSelectedSession(null);
+        }}
         session={selectedSession}
         onConfirm={handleCancel}
       />
 
-      {/* Toast (portaled) */}
       {toast &&
         createPortal(
           <div

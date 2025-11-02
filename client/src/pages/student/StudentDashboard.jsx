@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import "./StudentDashboard.css";
+/* NEW: reuse MySchedule look (green highlight, dim, tooltip, join button styles) */
+import "./MySchedule.css";
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 import MobileNav from "../../components/MobileNav";
@@ -39,6 +41,16 @@ const toIdString = (val) => {
     if (val.id) return String(val.id).trim();
   }
   return String(val).trim();
+};
+
+// utility — pick first truthy trimmed string (from SessionNotes.jsx)
+const pick = (...cands) => {
+  for (const c of cands) {
+    if (c === null || c === undefined) continue;
+    const s = String(c).trim();
+    if (s) return s;
+  }
+  return "";
 };
 
 // Robust mentor name resolver
@@ -83,6 +95,23 @@ const formatWhenRange = (startISO, endISO, fallbackMinutes = 30) => {
   return `${date} - ${time(start)}–${time(end)}`;
 };
 
+/* NEW: humanize ms for countdown in toast */
+const humanizeMs = (ms) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const parts = [];
+  if (h) parts.push(`${h}h`);
+  if (m || !h) parts.push(`${m}m`);
+  return parts.join(" ");
+};
+
+/* NEW: ensure https:// for meeting links */
+const ensureHttp = (url) => {
+  const u = String(url || "").trim();
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+};
+
 export default function StudentDashboard() {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1280
@@ -105,7 +134,6 @@ export default function StudentDashboard() {
   const showToast = useCallback((message, type = "info", stayMs = 3000) => {
     if (!message) return;
 
-    // Clear any existing timers/raf so the animation restarts cleanly
     if (toastTimerRef.current) {
       clearTimeout(toastTimerRef.current);
       toastTimerRef.current = null;
@@ -115,7 +143,6 @@ export default function StudentDashboard() {
       toastRafRef.current = 0;
     }
 
-    // Clear current toast to reset CSS animation, then set the new one on next frame
     setToast((t) => (t ? { ...t, message: "" } : { id: null, type, message: "" }));
 
     toastRafRef.current = requestAnimationFrame(() => {
@@ -260,7 +287,7 @@ export default function StudentDashboard() {
         ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
         : { "Content-Type": "application/json" };
 
-      const res = await fetch(`${API}/api/sessions/mine`, {
+      const res = await fetch(`${API}/api/sessions/mine?as=student`, {
         headers,
         credentials: "include",
       });
@@ -294,65 +321,68 @@ export default function StudentDashboard() {
     };
   };
 
-  // Derive upcoming from rawSessions + allCourses
+  // keep “now” fresh for live window detection & countdown hints (same as MySchedule)
+  const [nowTs, setNowTs] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, []);
+
   const upcomingSessions = useMemo(() => {
     const now = Date.now();
+    const byId = new Map((allCourses || []).map((c) => [toIdString(c._id || c.id), c]));
 
-    const byId = new Map(
-      (allCourses || []).map((c) => [toIdString(c._id || c.id), c])
-    );
+    const enriched = (rawSessions || []).map((s) => {
+      const courseId =
+        toIdString(s.offeringID) ||
+        toIdString(s.courseId) ||
+        toIdString(s.courseID) || ""; // NEW: include courseID shape too
 
-    const enriched = (rawSessions || [])
-      .map((s) => {
-        const courseId =
-          toIdString(s.offeringID) || toIdString(s.courseId) || "";
-        const course = byId.get(courseId);
-        const subject = course
-          ? `${course.courseCode || ""} ${course.courseName || ""}`.trim()
-          : "Course";
-        const section = course?.section || "";
-        const mentor = getMentorName(course) || "—";
-        const start = s.scheduleStart || s.startISO;
-        const end = s.scheduleEnd || s.endISO || null;
-        const startTs = new Date(start).getTime();
-        const meet =
-          s.meetLink ||
-          (meetingLinks[`${subject}__${section}`] || "") ||
-          course?.defaultMeetLink ||
-          "";
+      const course = byId.get(courseId);
+      const subject = course
+        ? `${course.courseCode || ""} ${course.courseName || ""}`.trim()
+        : "Course";
+      const section = course?.section || "";
+      const mentor = getMentorName(course) || "—";
 
-        return {
-          id: s.sessionId || s._id || `${courseId}-${start}`,
-          startISO: start,
-          endISO: end,
-          startTs,
-          subject,
-          section,
-          mentor,
-          meetLink: meet,
-          status: s.status || "pending",
-          topic: s.topic || "—",
-        };
-      })
-      .filter((s) => s.startTs && s.startTs >= now && s.status !== "cancelled")
-      .sort((a, b) => a.startTs - b.startTs)
-      .slice(0, 5);
+      const start = s.scheduleStart || s.startISO;
+      const end   = s.scheduleEnd   || s.endISO || null;
+
+      const startTs = new Date(start).getTime();
+      const endTs   = end ? new Date(end).getTime()
+                          : (Number.isFinite(startTs) ? startTs + 30 * 60 * 1000 : NaN);
+
+      const meet =
+        s.meetLink ||
+        (meetingLinks[`${subject}__${section}`] || "") ||
+        course?.defaultMeetLink ||
+        "";
+
+      return {
+        id: s.sessionId || s._id || `${courseId}-${start}`,
+        startISO: start,
+        endISO: end,
+        startTs,
+        endTs,
+        subject,
+        section,
+        mentor,
+        meetLink: meet,
+        status: s.status || "pending",
+        topic: s.topic || "—",
+      };
+    })
+    // CHANGE: include sessions that are live (endTs > now), not just those that start in the future
+    .filter((s) => {
+      const endOrStart = Number.isFinite(s.endTs) ? s.endTs : s.startTs;
+      return Number.isFinite(endOrStart) && endOrStart > now && s.status !== "cancelled";
+    })
+    .sort((a, b) => a.startTs - b.startTs)
+    .slice(0, 5);
 
     return enriched;
-  }, [rawSessions, allCourses, meetingLinks]);
-
-  const deriveExcerptFromTopics = (text = "") => {
-    const firstMeaningful = (text || "")
-      .split("\n")
-      .map((l) => l.trim())
-      .find((l) => l) || "";
-    const cleaned = firstMeaningful
-      .replace(/^[-*]\s+/, "")
-      .replace(/^\d+\)\s+/, "")
-      .replace(/^\d+\.\s+/, "");
-    const MAX = 100;
-    return cleaned.length > MAX ? `${cleaned.slice(0, MAX).trim()}…` : cleaned;
-  };
+    // IMPORTANT: depend on nowTs so this recalculates as time passes
+  }, [rawSessions, allCourses, meetingLinks, nowTs]);
 
   const openFloatingNote = (payload) => {
     const d = new Date(payload.startISO || payload.date || payload.dateTime);
@@ -382,6 +412,98 @@ export default function StudentDashboard() {
       } catch {}
     }
   };
+
+  /* ============ Recent Session Notes from DB ============ */
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [notesError, setNotesError] = useState("");
+  const [recentNotes, setRecentNotes] = useState([]);
+
+  const fetchRecentNotes = useCallback(async () => {
+    setNotesLoading(true);
+    setNotesError("");
+    try {
+      const token = localStorage.getItem("token") || "";
+      const headers = token
+        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+        : { "Content-Type": "application/json" };
+
+      const res = await fetch(`${API}/api/session-notes/mine`, {
+        headers,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        setRecentNotes([]);
+        setNotesError("Failed to load session notes.");
+      } else {
+        const data = await res.json();
+        const apiNotes = Array.isArray(data?.notes) ? data.notes : Array.isArray(data) ? data : [];
+
+        const normalized = apiNotes.map((n, idx) => {
+          const rs = n.rawSession || {};
+          const subject = pick(
+            n.subject, n.subjectText,
+            rs.subject?.code, rs.subject?.name,
+            rs.subjectCode, rs.subjectName,
+            rs.course?.code, rs.course?.name,
+            rs.courseCode, rs.courseName
+          );
+          const section = pick(
+            n.section, n.sectionText,
+            rs.section?.name, rs.section?.code,
+            rs.sectionName, rs.sectionCode, rs.block, rs.section
+          );
+          const mentorName = pick(n.mentorName, n.mentorNameText, rs.mentorName);
+
+          const startISO = pick(
+            rs.scheduleStart,
+            n.dateTimeISO,
+            n.startsAt && new Date(n.startsAt).toISOString(),
+            rs.startISO,
+            rs.startDateTime
+          );
+          const endISO = pick(
+            rs.scheduleEnd,
+            n.endISO,
+            rs.endISO
+          );
+
+          const topic = pick(n.topic, rs.topic);
+
+          return {
+            id:
+              toIdString(n.sessionId) ||
+              toIdString(n.id) ||
+              toIdString(n.noteId) ||
+              `note-${idx}`,
+            subject: subject || "—",
+            section: section || "",
+            mentorName: mentorName || "—",
+            startISO: startISO || "",
+            endISO: endISO || "",
+            topic: topic || "—",
+          };
+        });
+
+        const sorted = normalized
+          .slice()
+          .sort((a, b) => (new Date(b.startISO).getTime() || 0) - (new Date(a.startISO).getTime() || 0))
+          .slice(0, 5);
+
+        setRecentNotes(sorted);
+      }
+    } catch (err) {
+      console.error("Error fetching session notes:", err);
+      setRecentNotes([]);
+      setNotesError("An error occurred while loading session notes.");
+    } finally {
+      setNotesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRecentNotes();
+  }, [fetchRecentNotes]);
 
   return (
     <div className="page-wrapper">
@@ -480,11 +602,21 @@ export default function StudentDashboard() {
                 {upcomingSessions.map((s) => {
                   const key = `${s.subject}__${s.section}`;
                   const link = s.meetLink || meetingLinks[key] || "";
+
+                  // ====== LIVE WINDOW & JOIN GATING (toast-only UX) ======
+                  const hasTimes =
+                    Number.isFinite(s.startTs) && Number.isFinite(s.endTs);
+                  const live =
+                    hasTimes && nowTs >= s.startTs && nowTs < s.endTs;
+                  const canJoin = live;
+
                   return (
                     <div
-                      className="card upcoming-session is-colored"
+                      className={`card upcoming-session is-colored ${
+                        live ? "is-today" : "dimmed-not-live"
+                      }`}
                       key={s.id}
-                      style={cardVars(s.subject)}
+                      style={cardVars(`${s.subject} ${s.section}`)}
                     >
                       {/* 1) Date/Time (start–end) */}
                       <p className="session-date">
@@ -505,14 +637,37 @@ export default function StudentDashboard() {
                       {/* 4) Mentor */}
                       <p className="session-people">Mentor: {s.mentor}</p>
 
-                      {/* Join */}
+                      {/* JOIN — toast-based gating */}
                       <button
-                        className="action-btn"
+                        className="action-btn join-btn status-badge"
+                        data-disabled={!canJoin}
+                        aria-label="JOIN NOW"
                         onClick={() => {
-                          if (!link) {
+                          // HARD GUARDS with toasts
+                          if (!hasTimes) {
+                            showToast("Schedule time is missing. Please contact your mentor.", "error", 4200);
+                            return;
+                          }
+                          if (nowTs < s.startTs) {
+                            showToast(
+                              `Not yet — you can join only ${formatWhenRange(s.startISO, s.endISO)} • Starts in ${humanizeMs(s.startTs - nowTs)}`,
+                              "info",
+                              4200
+                            );
+                            return;
+                          }
+                          if (nowTs >= s.endTs) {
+                            showToast("This session has already ended.", "error", 4200);
+                            return;
+                          }
+
+                          const url = (link || "").trim();
+                          if (!url) {
                             showToast("No meeting link set by mentor yet.", "error");
                             return;
                           }
+
+                          // Open notes popup first (your dashboard’s behavior)
                           openFloatingNote({
                             id: s.id,
                             subject: s.subject,
@@ -521,10 +676,12 @@ export default function StudentDashboard() {
                             mentor: s.mentor,
                             date: s.startISO,
                           });
-                          window.location.assign(link);
+
+                          // Then go to meeting
+                          window.location.assign(ensureHttp(url));
                         }}
                       >
-                        JOIN NOW
+                        <span className="join-btn__label">JOIN NOW</span>
                       </button>
                     </div>
                   );
@@ -533,47 +690,46 @@ export default function StudentDashboard() {
             )}
           </div>
 
-          {/* Recent Session Notes (demo) */}
+          {/* Recent Session Notes — now from DB & topic preview */}
           <div className="section notes-section">
             <h2>Recent Session Notes</h2>
-            <div className="card-grid notes-grid">
-              {[
-                {
-                  id: "it115-s3103-2025-07-28-2046",
-                  subject: "MO-IT115 Object-Oriented Analysis and Design",
-                  section: "S3103",
-                  mentor: "Mr. Nestor Villanueva",
-                  dateTime: "July 28, 2025 - 8:46 PM",
-                  excerpt: "08:46 — Recap: inconsistent actor lifelines on prior draft",
-                },
-                {
-                  id: "it161-a1303-2025-07-30-1530",
-                  subject: "MO-IT161 Web Systems and Technology",
-                  section: "A3103",
-                  mentor: "Mr. Bryan Reyes",
-                  dateTime: "July 30, 2025 - 3:30 PM",
-                  excerpt: "Covered principles of responsive web design using flex and grid.",
-                },
-              ]
-                .map((n) => ({ ...n, _dt: new Date(n.dateTime) }))
-                .filter((n) => n._dt)
-                .sort((a, b) => b._dt - a._dt)
-                .slice(0, 5)
-                .map((note) => (
+
+            {notesLoading ? (
+              <div className="card-grid notes-grid">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div className="card skeleton-card" key={`notes-skel-${i}`} aria-hidden="true">
+                    <div className="skeleton-line title" />
+                    <div className="skeleton-line" />
+                    <div className="skeleton-line" />
+                    <div className="skeleton-btn" />
+                  </div>
+                ))}
+              </div>
+            ) : notesError ? (
+              <p className="empty-msg" style={{ color: "#ef4444" }}>{notesError}</p>
+            ) : recentNotes.length === 0 ? (
+              <p className="empty-msg">No session notes available.</p>
+            ) : (
+              <div className="card-grid notes-grid">
+                {recentNotes.map((note) => (
                   <div
                     className="card notes-card is-colored"
                     key={note.id}
                     style={cardVars(note.subject)}
                   >
                     <div className="card-content">
-                      <p className="notes-date">{note.dateTime}</p>
-                      <p className="notes-subject">
-                        {note.subject} - {note.section}
+                      <p className="notes-date">
+                        {formatWhenRange(note.startISO, note.endISO)}
                       </p>
-                      <p className="notes-mentor">{note.mentor}</p>
+                      <p className="notes-subject">
+                        {note.subject} {note.section ? `- ${note.section}` : ""}
+                      </p>
+                      <p className="notes-mentor">Mentor: {note.mentorName || "—"}</p>
+
                       <div className="note-preview">
-                        {deriveExcerptFromTopics(note.excerpt)}
+                        <strong>Topic:</strong> {note.topic?.trim() || "—"}
                       </div>
+
                       <button
                         type="button"
                         className="action-btn"
@@ -584,7 +740,8 @@ export default function StudentDashboard() {
                     </div>
                   </div>
                 ))}
-            </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -595,9 +752,22 @@ export default function StudentDashboard() {
         subject={selectedSubject.subject}
         section={selectedSubject.section}
         mentor={selectedSubject.mentor}
-        onCreated={fetchSessions}
-        onUpdated={fetchSessions}
-        onDeleted={fetchSessions}
+        onCreated={() => {
+          fetchSessions();
+          fetchRecentNotes(); // refresh notes list too
+          // optional: instantly nudge header notifications
+          window.__notifyNotificationsChanged && window.__notifyNotificationsChanged();
+        }}
+        onUpdated={() => {
+          fetchSessions();
+          fetchRecentNotes();
+          window.__notifyNotificationsChanged && window.__notifyNotificationsChanged();
+        }}
+        onDeleted={() => {
+          fetchSessions();
+          fetchRecentNotes();
+          window.__notifyNotificationsChanged && window.__notifyNotificationsChanged();
+        }}
       />
 
       <ProgramSelectionModal

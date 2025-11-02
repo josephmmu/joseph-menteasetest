@@ -135,9 +135,37 @@ const searchStudents = async (req, res) => {
   }
 };
 
+// Minimal: resolve user ids to names/emails (mentor/admin)
+const namesByIds = async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    if (!ids.length) return res.json([]);
+    const uniq = [...new Set(ids.map((x) => String(x)).filter(Boolean))];
+    const users = await User.find({ _id: { $in: uniq } })
+      .select("name email firstName lastName username")
+      .lean();
+    const out = users.map((u) => ({
+      _id: u._id,
+      id: u._id,
+      name:
+        u.name ||
+        [u.firstName, u.lastName].filter(Boolean).join(" ").trim() ||
+        u.username ||
+        u.email ||
+        "",
+      email: u.email || "",
+    }));
+    res.json(out);
+  } catch (error) {
+    console.error("Error resolving names:", error);
+    res.status(500).json({ message: "Server error while resolving names." });
+  }
+};
+
 module.exports = {
   getAllUsers,
   updateUser,
   deleteUser,
   searchStudents,
+  namesByIds,
 };

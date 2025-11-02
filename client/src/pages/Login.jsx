@@ -39,23 +39,33 @@ export default function Login() {
         return;
       }
 
-      // Determin the role based on email pattern
-      const role = email.includes('lr.') ? 'student' : 'mentor';
+      // Determine role (or get it back from your API/JWT)
+      const derivedRole = email.includes('lr.') ? 'student' : 'mentor';
 
       const res = await axios.post('http://localhost:5001/api/auth/google', {
-        email, name, googleId, photoUrl : picture, role
+        email, name, googleId, photoUrl: picture, role: derivedRole
       });
 
       const token = res.data.token;
       login(token);
 
-      // const user = jwtDecode(token);
-      // if (user.role === 'admin') navigate('/admin-dashboard', { replace: true });
-      // else if (user.role === 'mentor') navigate('/mentor-dashboard', { replace: true });
-      // else navigate('/student-dashboard', { replace: true});
+      // Pick target route from the *authoritative* source (prefer token, then API, then fallback)
+      let roleFromToken = '';
+      try {
+        roleFromToken = jwtDecode(token)?.role || '';
+      } catch {}
+      const role = roleFromToken || res.data?.user?.role || derivedRole;
+
+      const target =
+        role === 'admin' ? '/admin-dashboard' :
+        role === 'mentor' ? '/mentor-dashboard' :
+        '/student-dashboard';
+
+      // Hard refresh to ensure all providers/hooks re-init with the new auth state
+      window.location.replace(target); // replaces history so Back won't return to /login
     } catch (err) {
       console.error(err);
-      showToast('Login failed');         
+      showToast('Login failed');
     }
   };
 

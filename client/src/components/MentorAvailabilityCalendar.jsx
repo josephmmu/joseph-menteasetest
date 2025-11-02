@@ -3,12 +3,16 @@ import { createPortal } from "react-dom";
 import "./MentorAvailabilityCalendar.css";
 
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MAX_FIXED_DAY_CLOSURES = 3;
-const FIXED_DAY_GRACE_MS = 24 * 60 * 60 * 1000;
-const MIN_MENTORING_MINUTES = 75; // at least 1 hour 15 minutes
+const MAX_FIXED_DAY_CLOSURES = 3; // still enforced, but no grace/undo windows
 
 /* ---------------- API helpers (adjust base URL/auth if needed) --------------- */
-const COURSES_API = "/api/courses"; // or your full origin
+const API_BASE = (
+  (typeof import.meta !== "undefined" && import.meta?.env?.VITE_API_BASE_URL) ||
+  process.env.REACT_APP_API_URL ||
+  process.env.REACT_APP_API_BASE_URL ||
+  "http://localhost:5000"
+).replace(/\/+$/, "");
+const COURSES_API = `${API_BASE}/api/courses`;
 
 function authFetch(url, opts = {}) {
   const token =
@@ -53,13 +57,98 @@ async function patchMentoring(courseId, start, end) {
   if (!res.ok) await robustJsonOrTextError(res);
   return res.json(); // { mentoringBlock: { start, end } }
 }
+
+/* --------- sanitize helpers + PATCH with safe fallback (fixed) --------- */
+const ensureStringDates = (arr) =>
+  Array.from(new Set((Array.isArray(arr) ? arr : []).map(String))).sort();
+
+/** Convert any numeric/string meta into schema-compliant objects */
+const normalizeMetaMapsForServer = (rawOpen = {}, rawClosed = {}) => {
+  const outOpen = {};
+  const outClosed = {};
+
+  for (const [iso, v] of Object.entries(rawOpen || {})) {
+    let openedAt;
+    if (typeof v === "number") openedAt = new Date(v).toISOString();
+    else if (v && typeof v === "object" && v.openedAt) openedAt = v.openedAt;
+    else if (typeof v === "string") openedAt = v;
+    else openedAt = new Date().toISOString();
+    outOpen[iso] = { openedAt };
+  }
+
+  for (const [iso, v] of Object.entries(rawClosed || {})) {
+    let closedAt;
+    if (typeof v === "number") closedAt = new Date(v).toISOString();
+    else if (v && typeof v === "object" && v.closedAt) closedAt = v.closedAt;
+    else if (typeof v === "string") closedAt = v;
+    else closedAt = new Date().toISOString();
+    outClosed[iso] = { closedAt };
+  }
+
+  return { openDates: outOpen, closedDates: outClosed };
+};
+
 async function patchAvailability(courseId, partial) {
-  const res = await authFetch(`${COURSES_API}/${courseId}/availability`, {
+  const openDates = ensureStringDates(partial.openDates);
+  const closedDates = ensureStringDates(partial.closedDates);
+
+  let meta = undefined;
+  if (partial._meta) {
+    const norm = normalizeMetaMapsForServer(
+      partial._meta.openDates || {},
+      partial._meta.closedDates || {}
+    );
+    meta = {
+      ...partial._meta,
+      openDates: norm.openDates,
+      closedDates: norm.closedDates,
+    };
+  }
+
+  // Attempt A: arrays + normalized _meta
+  let res = await authFetch(`${COURSES_API}/${courseId}/availability`, {
     method: "PATCH",
-    body: JSON.stringify(partial),
+    body: JSON.stringify({
+      openDates,
+      closedDates,
+      ...(meta ? { _meta: meta } : {}),
+    }),
   });
+
+  // Attempt B: if 4xx, retry with arrays only
+  if (!res.ok && res.status >= 400 && res.status < 500) {
+    res = await authFetch(`${COURSES_API}/${courseId}/availability`, {
+      method: "PATCH",
+      body: JSON.stringify({ openDates, closedDates }),
+    });
+  }
+
   if (!res.ok) await robustJsonOrTextError(res);
-  return res.json(); // availability object
+  return res.json();
+}
+
+/* ---------------- always re-fetch from DB after a patch ---------------- */
+async function saveAvailabilityAndRefresh(courseId, partial, persist) {
+  await patchAvailability(courseId, partial);
+  const fresh = await getAvailability(courseId);
+
+  const allowed =
+    Array.isArray(fresh?.allowedDays) && fresh.allowedDays.length
+      ? fresh.allowedDays
+      : undefined;
+
+  const payload = {
+    mentoringBlock: fresh?.mentoringBlock || {},
+    openDates: Array.isArray(fresh?.openDates) ? fresh.openDates : [],
+    closedDates: Array.isArray(fresh?.closedDates) ? fresh.closedDates : [],
+    openMeta: fresh?.openMeta || fresh?._meta?.openDates || {},
+    closedMeta: fresh?.closedMeta || fresh?._meta?.closedDates || {},
+    _policy: fresh?._meta?.policy || null, // harmless if backend omits
+  };
+  if (allowed) payload.allowedDays = allowed;
+
+  persist(payload);
+  return fresh;
 }
 
 /* Resolve various id shapes (_id vs id) */
@@ -101,7 +190,7 @@ const t24To12 = (t24 = "07:00") => {
   const { hour, minute, ampm } = parse24ToParts(t24);
   return `${hour}:${minute} ${ampm}`;
 };
-const normalizeHHMM = (val) => {
+const normalizeHHMM_front = (val) => {
   if (!val || typeof val !== "string") return null;
   const m = val.trim().match(/^(\d{1,2}):(\d{2})$/);
   if (!m) return null;
@@ -112,21 +201,21 @@ const normalizeHHMM = (val) => {
   return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 };
 
-/* ---------------- week math ---------------- */
-const startOfWeek = (d) => {
-  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const dow = x.getDay();
-  x.setDate(x.getDate() - dow);
-  x.setHours(0, 0, 0, 0);
-  return x;
-};
-const nextWeekStartISO = (() => {
-  const today = new Date();
-  const sow = startOfWeek(today);
-  const next = new Date(sow);
-  next.setDate(sow.getDate() + 7);
-  return dateToISO(next);
+/* ---------------- current-week lock helpers ---------------- */
+const startOfCurrentWeekISO = (() => {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dow = d.getDay(); // Sunday=0
+  d.setDate(d.getDate() - dow);
+  return dateToISO(d);
 })();
+const endOfCurrentWeekISO = (() => {
+  const start = isoToDate(startOfCurrentWeekISO);
+  start.setDate(start.getDate() + 6); // through Saturday
+  return dateToISO(start);
+})();
+const isISOInCurrentWeek = (iso) =>
+  !!iso && iso >= startOfCurrentWeekISO && iso <= endOfCurrentWeekISO;
 
 /* ---------------- parse class time / days helpers ---------------- */
 function parseCourseTimeRange(rangeStr = "") {
@@ -158,6 +247,7 @@ function parseCourseTimeRange(rangeStr = "") {
   if (!start || !end) return null;
   return { start, end };
 }
+const MIN_MENTORING_MINUTES = 75;
 const defaultBlockForSectionKey = (selectedKey = "") => {
   const section = (selectedKey.split("__")[1] || "").trim();
   const first = section.charAt(0).toUpperCase();
@@ -178,12 +268,12 @@ const parseDaysStringToDow = (raw) => {
     let dow = null;
     switch (ch) {
       case "M": dow = 1; break;
-      case "T": dow = 2; break; // Tue
+      case "T": dow = 2; break;
       case "W": dow = 3; break;
-      case "R": dow = 4; break; // Thu
+      case "R": dow = 4; break;
       case "F": dow = 5; break;
-      case "S": dow = 6; break; // Sat
-      case "U": dow = 0; break; // Sun
+      case "S": dow = 6; break;
+      case "U": dow = 0; break;
       default: dow = null;
     }
     if (dow !== null) out.push(dow);
@@ -196,24 +286,22 @@ const dowsToNames = (dows) =>
     .map((i) => WEEKDAY_NAMES[i] ?? null)
     .filter(Boolean);
 
-/* ---------------- 24h lock ---------------- */
-function isWithin24hOfDateStart(iso) {
-  if (!iso) return false;
-  const d = isoToDate(iso);
-  if (!d) return false;
-  const now = new Date();
-  const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diffMs = startOfDay.getTime() - now.getTime();
-  const isToday = iso === dateToISO(now);
-  if (isToday) return true;
-  return diffMs >= 0 && diffMs < FIXED_DAY_GRACE_MS;
-}
+// map schedule → default open days
+// MWF  -> Wed, Fri
+// TTHS -> Thu, Sat
+const allowedFromSchedule = (daysStr = "") => {
+  const dows = parseDaysStringToDow(daysStr);
+  const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+  if (same(dows, [1, 3, 5])) return ["Wed", "Fri"];
+  if (same(dows, [4, 6])) return ["Thu", "Sat"];
+  return [];
+};
 
 /* ---------------- course helpers to pick base time ---------------- */
 function pickCourseClassRange(course) {
   if (!course) return null;
-  const clsStart = normalizeHHMM(course.classStart || "");
-  const clsEnd = normalizeHHMM(course.classEnd || "");
+  const clsStart = normalizeHHMM_front(course.classStart || "");
+  const clsEnd = normalizeHHMM_front(course.classEnd || "");
   if (clsStart && clsEnd && timeToMinutes(clsEnd) > timeToMinutes(clsStart)) {
     return { start: clsStart, end: clsEnd };
   }
@@ -235,22 +323,23 @@ function pickCourseClassRange(course) {
 }
 function pickCourseMentoringDefault(course) {
   if (!course) return null;
-  const ds = normalizeHHMM(course.mentoringDefaultStart || "");
-  const de = normalizeHHMM(course.mentoringDefaultEnd || "");
+  const ds = normalizeHHMM_front(course.mentoringDefaultStart || "");
+  const de = normalizeHHMM_front(course.mentoringDefaultEnd || "");
   if (ds && de && timeToMinutes(de) > timeToMinutes(ds)) return { start: ds, end: de };
   return null;
 }
 function pickCourseMentoringOverride(course) {
   if (!course) return null;
-  const os = normalizeHHMM(course.mentoringOverrideStart || "");
-  const oe = normalizeHHMM(course.mentoringOverrideEnd || "");
+  const os = normalizeHHMM_front(course.mentoringOverrideStart || "");
+  const oe = normalizeHHMM_front(course.mentoringOverrideEnd || "");
   if (os && oe && timeToMinutes(oe) > timeToMinutes(os)) return { start: os, end: oe };
   return null;
 }
 
 export default function MentorAvailabilityCalendar({
-  subjectSectionPairs = [], // must include { id or _id, subject, section, schedule?.days/time, mentoringOverrideStart/End? }
+  subjectSectionPairs = [],
   onClose,
+  pairToCourse = {},
 }) {
   const [store, setStore] = useState({});
   const [selectedKey, setSelectedKey] = useState(
@@ -275,6 +364,14 @@ export default function MentorAvailabilityCalendar({
 
   const [confirmClose, setConfirmClose] = useState({ open: false, iso: "", weekday: "" });
   const [confirmTimeSave, setConfirmTimeSave] = useState({ open: false, start: "", end: "" });
+
+  // Unified confirm modal for open/close/reopen
+  const [confirmToggle, setConfirmToggle] = useState({
+    open: false,
+    iso: "",
+    weekday: "",
+    type: "", // 'open' | 'close' | 'reopen'
+  });
 
   const prevSelectedKey = useRef(null);
 
@@ -314,17 +411,18 @@ export default function MentorAvailabilityCalendar({
     return subjectSectionPairs[idx];
   }, [selectedKey, subjectSectionPairs]);
 
-  const baseAllowedDow = useMemo(() => {
-    if (!selectedCourseInfo) return [];
-    if (Array.isArray(selectedCourseInfo.allowedDow) && selectedCourseInfo.allowedDow.length) {
-      return selectedCourseInfo.allowedDow.slice().sort((a, b) => a - b);
-    }
-    const daysStr = selectedCourseInfo?.daysStr || selectedCourseInfo?.schedule?.days || "";
-    if (daysStr) return parseDaysStringToDow(daysStr);
-    return [];
-  }, [selectedCourseInfo]);
+  const courseIdForSelected = useMemo(() => {
+    const direct = getCourseId(selectedCourseInfo);
+    if (direct) return direct;
+    if (!selectedKey) return null;
+    return pairToCourse?.[selectedKey] || null;
+  }, [selectedCourseInfo, pairToCourse, selectedKey]);
 
-  const baseAllowedDays = useMemo(() => dowsToNames(baseAllowedDow), [baseAllowedDow]);
+  const baseAllowedDays = useMemo(() => {
+    if (!selectedCourseInfo) return [];
+    const daysStr = selectedCourseInfo?.daysStr || selectedCourseInfo?.schedule?.days || "";
+    return allowedFromSchedule(daysStr);
+  }, [selectedCourseInfo]);
 
   const computeCourseDefaultBlock = useCallback(() => {
     const override = pickCourseMentoringOverride(selectedCourseInfo);
@@ -358,11 +456,12 @@ export default function MentorAvailabilityCalendar({
         openDates: [],
         closedDates: [],
         closedMeta: {},
+        openMeta: {},
+        _policy: null,
       };
 
-      // Hydrate from backend if we have course id
       try {
-        const cid = getCourseId(selectedCourseInfo);
+        const cid = courseIdForSelected;
         if (cid) {
           const av = await getAvailability(cid);
           if (av?.mentoringBlock?.start && av?.mentoringBlock?.end) {
@@ -377,11 +476,11 @@ export default function MentorAvailabilityCalendar({
               : nextEntry.allowedDays;
           nextEntry.openDates = Array.isArray(av.openDates) ? av.openDates : [];
           nextEntry.closedDates = Array.isArray(av.closedDates) ? av.closedDates : [];
-          nextEntry.closedMeta = av.closedMeta || {};
+          nextEntry.closedMeta = av.closedMeta || av?._meta?.closedDates || {};
+          nextEntry.openMeta = av.openMeta || av?._meta?.openDates || {};
+          nextEntry._policy = av?._meta?.policy || null; // harmless if absent
         }
       } catch (e) {
-        // Non-blocking; you can toast if you want visibility:
-        // showToast(e?.message || "Failed to load availability.", "error");
         console.warn("Availability init failed:", e);
       }
 
@@ -449,7 +548,7 @@ export default function MentorAvailabilityCalendar({
     const err = checkMentoringRange(confirmTimeSave.start, confirmTimeSave.end);
     if (err) { showToast(err, "error"); return; }
     try {
-      const courseId = getCourseId(selectedCourseInfo);
+      const courseId = courseIdForSelected;
       if (!courseId) throw new Error("Missing course id");
       await patchMentoring(courseId, confirmTimeSave.start, confirmTimeSave.end);
       persist({ mentoringBlock: { start: confirmTimeSave.start, end: confirmTimeSave.end } });
@@ -489,33 +588,22 @@ export default function MentorAvailabilityCalendar({
     openDates: [],
     closedDates: [],
     closedMeta: {},
+    openMeta: {},
+    _policy: null,
   };
 
   const todayISO = dateToISO(new Date());
   const selectedIsPast = !selectedDate ? false : selectedDate < todayISO;
+  const selectedIsCurrentWeek = selectedDate ? isISOInCurrentWeek(selectedDate) : false;
 
+  // Count every closed fixed day right away
   const closedFixedCount = (entry.closedDates || []).length;
   const remainingFixed = Math.max(0, MAX_FIXED_DAY_CLOSURES - closedFixedCount);
-
-  const isWithinGrace = (iso) => {
-    const ts = entry.closedMeta?.[iso];
-    if (!ts) return false;
-    return Date.now() - ts <= FIXED_DAY_GRACE_MS;
-  };
 
   const selectedDateObj = isoToDate(selectedDate);
   const selectedWeekday = selectedDateObj
     ? WEEKDAY_NAMES[selectedDateObj.getDay()]
     : "";
-  const isSelectedBaseAllowed = (entry.allowedDays || []).includes(selectedWeekday);
-  const isSelectedClosedFixed =
-    isSelectedBaseAllowed && (entry.closedDates || []).includes(selectedDate);
-  const canReopenSelectedClosedFixed =
-    isSelectedClosedFixed && isWithinGrace(selectedDate);
-  const isSelectedInCurrentWeekFuture =
-    !!selectedDate &&
-    selectedDate >= todayISO &&
-    selectedDate < nextWeekStartISO;
 
   const isDateCurrentlyOpen = (() => {
     if (!selectedDate) return false;
@@ -528,13 +616,64 @@ export default function MentorAvailabilityCalendar({
     return (entry.allowedDays || []).includes(weekday);
   })();
 
-  const canOpenSelectedDateForStudents =
-    !selectedIsPast &&
-    !(isSelectedClosedFixed && !canReopenSelectedClosedFixed);
+  // unified confirm handler
+  const confirmToggleNow = async () => {
+    const iso = confirmToggle.iso;
+    const type = confirmToggle.type;
+
+    try {
+      const cid = courseIdForSelected;
+      if (!cid) throw new Error("Missing course id");
+
+      if (type === "open") {
+        const openDates = Array.from(new Set([...(entry.openDates || []), iso]));
+        const partial = {
+          openDates,
+          closedDates: (entry.closedDates || []).filter((x) => x !== iso),
+          _meta: {
+            ...(entry._meta || {}),
+            openDates: entry.openMeta || {},
+            closedDates: entry.closedMeta || {},
+          },
+        };
+        await saveAvailabilityAndRefresh(cid, partial, persist);
+        showToast("Date opened.", "success");
+      } else if (type === "close") {
+        const openDates = (entry.openDates || []).filter((x) => x !== iso);
+        const partial = {
+          openDates,
+          closedDates: entry.closedDates || [],
+          _meta: {
+            ...(entry._meta || {}),
+            openDates: entry.openMeta || {},
+            closedDates: entry.closedMeta || {},
+          },
+        };
+        await saveAvailabilityAndRefresh(cid, partial, persist);
+        showToast("Date closed.", "success");
+      } else if (type === "reopen") {
+        const closedDates = (entry.closedDates || []).filter((x) => x !== iso);
+        const partial = {
+          openDates: entry.openDates || [],
+          closedDates,
+          _meta: {
+            ...(entry._meta || {}),
+            openDates: entry.openMeta || {},
+            closedDates: entry.closedMeta || {},
+          },
+        };
+        await saveAvailabilityAndRefresh(cid, partial, persist);
+        showToast("Fixed day reopened.", "success");
+      }
+      setConfirmToggle({ open: false, iso: "", weekday: "", type: "" });
+    } catch (e) {
+      showToast(e?.message || "Failed to save availability.", "error");
+    }
+  };
 
   const requestCloseFixedDate = (iso, weekday) => {
-    if (iso < nextWeekStartISO) {
-      showToast(`Fixed days can only be marked unavailable starting next week`, "error");
+    if (isISOInCurrentWeek(iso)) {
+      showToast("You can't close fixed days in the current week.", "error");
       return;
     }
     const alreadyClosed = (entry.closedDates || []).includes(iso);
@@ -548,96 +687,78 @@ export default function MentorAvailabilityCalendar({
     setConfirmClose({ open: true, iso, weekday });
   };
 
+  /* ------- NEW: confirmCloseNow handler for the fixed-day close modal ------- */
   const confirmCloseNow = async () => {
     const iso = confirmClose.iso;
-    const closedDates = Array.from(new Set([...(entry.closedDates || []), iso]));
-    const openDates = (entry.openDates || []).filter((x) => x !== iso);
-    const closedMeta = { ...(entry.closedMeta || {}), [iso]: Date.now() };
-
-    try {
-      const cid = getCourseId(selectedCourseInfo);
-      if (!cid) throw new Error("Missing course id");
-      await patchAvailability(cid, { openDates, closedDates, closedMeta });
-      persist({ openDates, closedDates, closedMeta });
+    if (!iso) { setConfirmClose({ open: false, iso: "", weekday: "" }); return; }
+    if (isISOInCurrentWeek(iso)) {
+      showToast("You can't close fixed days in the current week.", "error");
       setConfirmClose({ open: false, iso: "", weekday: "" });
-      showToast("Marked fixed day unavailable.", "success");
+      return;
+    }
+    try {
+      const cid = courseIdForSelected;
+      if (!cid) throw new Error("Missing course id");
+
+      const closedDates = Array.from(new Set([...(entry.closedDates || []), iso]));
+      const openDates = (entry.openDates || []).filter((x) => x !== iso);
+
+      const partial = {
+        openDates,
+        closedDates,
+        _meta: {
+          ...(entry._meta || {}),
+          openDates: entry.openMeta || {},
+          closedDates: entry.closedMeta || {},
+        },
+      };
+
+      await saveAvailabilityAndRefresh(cid, partial, persist);
+      showToast("Fixed day closed.", "success");
     } catch (e) {
-      showToast(e?.message || "Failed to save availability.", "error");
+      showToast(e?.message || "Failed to close fixed day.", "error");
+    } finally {
+      setConfirmClose({ open: false, iso: "", weekday: "" });
     }
   };
-  const cancelClose = () => setConfirmClose({ open: false, iso: "", weekday: "" });
 
+  // Toggle handler (no grace; always confirm) + current-week lock
   const onToggleOpen = async (checked) => {
     if (!selectedDate) return;
     if (selectedIsPast) return;
+    if (selectedIsCurrentWeek) {
+      showToast(
+        "Current-week dates cannot be opened or closed. Manage dates starting next week.",
+        "error"
+      );
+      return;
+    }
 
     const iso = selectedDate;
     const weekday = WEEKDAY_NAMES[isoToDate(iso)?.getDay()];
     const baseAllowed = (entry.allowedDays || []).includes(weekday);
-    const isClosedFixed =
-      baseAllowed && (entry.closedDates || []).includes(iso);
+    const isClosedFixed = baseAllowed && (entry.closedDates || []).includes(iso);
 
     if (checked) {
-      if (isWithin24hOfDateStart(iso)) {
-        showToast("You can’t open a date less than 24 hours in advance.", "error");
-        return;
-      }
-
+      // OPEN
       if (isClosedFixed) {
-        if (isWithinGrace(iso)) {
-          const closedDates = (entry.closedDates || []).filter((x) => x !== iso);
-          const { [iso]: _, ...restMeta } = entry.closedMeta || {};
-          try {
-            const cid = getCourseId(selectedCourseInfo);
-            if (!cid) throw new Error("Missing course id");
-            await patchAvailability(cid, {
-              openDates: entry.openDates || [],
-              closedDates,
-              closedMeta: restMeta,
-            });
-            persist({ openDates: entry.openDates || [], closedDates, closedMeta: restMeta });
-            showToast("Reopened (within grace window).", "success");
-          } catch (e) {
-            showToast(e?.message || "Failed to save availability.", "error");
-          }
-        } else {
-          showToast("This fixed day was closed and can’t be reopened (grace period ended).", "error");
-        }
+        setConfirmToggle({ open: true, iso, weekday, type: "reopen" });
         return;
       }
-      const closedDates = (entry.closedDates || []).filter((x) => x !== iso);
-      const openDates = baseAllowed
-        ? entry.openDates || []
-        : Array.from(new Set([...(entry.openDates || []), iso]));
-      try {
-        const cid = getCourseId(selectedCourseInfo);
-        if (!cid) throw new Error("Missing course id");
-        await patchAvailability(cid, { openDates, closedDates });
-        persist({ openDates, closedDates });
-      } catch (e) {
-        showToast(e?.message || "Failed to save availability.", "error");
-      }
-      return;
-    } else {
       if (baseAllowed) {
-        if (iso < nextWeekStartISO) {
-          showToast(`Fixed days can only be marked unavailable starting next week`, "error");
-          return;
-        }
+        // Already open by default; nothing to persist
+        showToast("This date is already open by default (fixed day).", "info");
+        return;
+      }
+      setConfirmToggle({ open: true, iso, weekday, type: "open" });
+    } else {
+      // CLOSE
+      if (baseAllowed) {
         requestCloseFixedDate(iso, weekday);
         return;
-      } else {
-        const openDates = (entry.openDates || []).filter((x) => x !== iso);
-        try {
-          const cid = getCourseId(selectedCourseInfo);
-          if (!cid) throw new Error("Missing course id");
-          await patchAvailability(cid, { openDates });
-          persist({ openDates });
-        } catch (e) {
-          showToast(e?.message || "Failed to save availability.", "error");
-        }
-        return;
       }
+      // outside-default close
+      setConfirmToggle({ open: true, iso, weekday, type: "close" });
     }
   };
 
@@ -681,27 +802,17 @@ export default function MentorAvailabilityCalendar({
   const draftEnd24   = partsTo24(endHour, endMinute, endAmpm);
   const isDraftDifferent = editingMentorTime && (draftStart24 !== savedStart24 || draftEnd24 !== savedEnd24);
   const remainingAfterConfirm = Math.max(0, remainingFixed - 1);
-  const isWithin24hLockOpenSelected = isWithin24hOfDateStart(selectedDate);
 
   const toggleTitle = selectedIsPast
     ? "Past dates cannot be modified"
-    : (!isDateCurrentlyOpen && isWithin24hLockOpenSelected)
-    ? "You can’t open a date less than 24 hours in advance."
-    : isSelectedClosedFixed && !canReopenSelectedClosedFixed
-    ? "This fixed day was closed and can’t be reopened (grace period ended)."
-    : isSelectedBaseAllowed && isSelectedInCurrentWeekFuture
-    ? `Fixed days can only be marked unavailable starting next week`
-    : isSelectedClosedFixed && canReopenSelectedClosedFixed
-    ? "This fixed day was closed; you can reopen within the 24-hour grace period."
+    : selectedIsCurrentWeek
+    ? "Current-week dates cannot be modified"
     : undefined;
 
   const getToggleDisabledReason = () => {
     if (editingMentorTime) return "Save mentoring time to continue.";
     if (selectedIsPast) return "Past dates cannot be modified.";
-    if (isSelectedBaseAllowed && isSelectedInCurrentWeekFuture)
-      return "Fixed days can only be marked unavailable starting next week.";
-    if (isSelectedClosedFixed && !canReopenSelectedClosedFixed)
-      return "This fixed day was closed and can’t be reopened (grace period ended).";
+    if (selectedIsCurrentWeek) return "Current-week dates cannot be opened or closed. Manage dates starting next week.";
     return "";
   };
 
@@ -715,13 +826,20 @@ export default function MentorAvailabilityCalendar({
     <>
       {toast.msg &&
         createPortal(
-          <div key={toast.id} className={`toast vsm ${toast.type}`} role="status" aria-live="polite" aria-atomic="true">
+          <div
+            key={toast.id}
+            className={`toast vsm ${toast.type}`}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            style={{ zIndex: 7000 }}
+          >
             {toast.msg}
           </div>,
           document.body
         )}
 
-      {/* Confirm close fixed-day modal */}
+      {/* Confirm close fixed-day modal (limit enforced) */}
       {confirmClose.open && (
         <div className="mini-modal-overlay" role="dialog" aria-modal="true">
           <div className="mini-modal">
@@ -730,7 +848,7 @@ export default function MentorAvailabilityCalendar({
               You’re about to mark <strong>{confirmClose.weekday}</strong> ({formatLongUS(confirmClose.iso)}) as <strong>unavailable</strong> for students.
             </p>
             <p className="mini-modal-text">
-              This will count toward your limit of {MAX_FIXED_DAY_CLOSURES} closed fixed days for this course. You can undo this within the next <strong>24 hours</strong>; after that, it becomes permanent.
+              This will count toward your limit of {MAX_FIXED_DAY_CLOSURES} closed fixed days for this course.
             </p>
             <p className="mini-modal-text">
               Limit: {MAX_FIXED_DAY_CLOSURES}. Used: {closedFixedCount}. Remaining <em>after</em> this action: <strong>{remainingAfterConfirm}</strong>.
@@ -755,8 +873,31 @@ export default function MentorAvailabilityCalendar({
             </p>
             <div className="mini-modal-actions">
               <button className="btn-ghost" onClick={() => setConfirmTimeSave({ open: false, start: "", end: "" })}>Back</button>
-              {/* Same shape as Back, but tinted */}
               <button className="btn-ghost btn-confirm" onClick={confirmSaveMentoring}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm open/close/reopen modal */}
+      {confirmToggle.open && (
+        <div className="mini-modal-overlay" role="dialog" aria-modal="true">
+          <div className="mini-modal">
+            {confirmToggle.type === "open" && <h4 className="mini-modal-title">Open this date for booking?</h4>}
+            {confirmToggle.type === "close" && <h4 className="mini-modal-title">Close this date?</h4>}
+            {confirmToggle.type === "reopen" && <h4 className="mini-modal-title">Reopen this fixed day?</h4>}
+
+            <p className="mini-modal-text">
+              {confirmToggle.type === "open" && <>You’re about to <strong>allow bookings</strong> on <strong>{confirmToggle.weekday}</strong> ({formatLongUS(confirmToggle.iso)}).</>}
+              {confirmToggle.type === "close" && <>You’re about to <strong>disallow bookings</strong> on <strong>{confirmToggle.weekday}</strong> ({formatLongUS(confirmToggle.iso)}).</>}
+              {confirmToggle.type === "reopen" && <>You’re about to <strong>reopen</strong> <strong>{confirmToggle.weekday}</strong> ({formatLongUS(confirmToggle.iso)}) for student bookings.</>}
+            </p>
+
+            <div className="mini-modal-actions">
+              <button className="btn-ghost" onClick={() => setConfirmToggle({ open: false, iso: "", weekday: "", type: "" })}>
+                Cancel
+              </button>
+              <button className="btn-ghost btn-confirm" onClick={confirmToggleNow}>Confirm</button>
             </div>
           </div>
         </div>
@@ -805,6 +946,7 @@ export default function MentorAvailabilityCalendar({
                           if (!cell) return <td key={j} className="empty" aria-hidden="true" />;
                           const iso = dateToISO(cell);
                           const isSelected = iso === selectedDate;
+                          const isCurrentWeekCell = isISOInCurrentWeek(iso);
 
                           const studentAllowed = (() => {
                             if ((entry.closedDates || []).includes(iso)) return false;
@@ -821,6 +963,7 @@ export default function MentorAvailabilityCalendar({
                           if (studentAllowed && !isPastDate) cellClasses.push("allowed");
                           if (!studentAllowed || isPastDate) cellClasses.push("disabled");
                           if (isClosed) cellClasses.push("closed-fixed");
+                          if (isCurrentWeekCell && !isPastDate) cellClasses.push("week-locked");
 
                           return (
                             <td key={j} className={cellClasses.join(" ")}>
@@ -861,9 +1004,6 @@ export default function MentorAvailabilityCalendar({
                 </div>
                 <div className="base-days-limit">
                   Fixed-day offs remaining for this course: <strong>{remainingFixed}</strong> / {MAX_FIXED_DAY_CLOSURES}
-                </div>
-                <div className="base-days-limit">
-                  You can mark fixed days unavailable starting <strong>next week</strong>.
                 </div>
               </div>
             </aside>
@@ -908,7 +1048,7 @@ export default function MentorAvailabilityCalendar({
                           if (editingMentorTime) return showToast("Save mentoring time to continue.", "error");
                           onToggleOpen(e.target.checked);
                         }}
-                        disabled={!canOpenSelectedDateForStudents || editingMentorTime}
+                        disabled={selectedIsPast || editingMentorTime || selectedIsCurrentWeek}
                         aria-checked={isDateCurrentlyOpen}
                         className="toggle-input"
                       />
@@ -918,32 +1058,17 @@ export default function MentorAvailabilityCalendar({
                       <span className="toggle-text">Allow students to book this date</span>
                     </label>
 
-                    {!isDateCurrentlyOpen && isWithin24hLockOpenSelected && (
+                    {selectedIsPast && (
                       <div className="toggle-disabled-text below-toggle">
-                        You can’t open a date less than 24 hours in advance.
+                        Past dates cannot be opened/closed or edited.
                       </div>
                     )}
-
-                    {isSelectedBaseAllowed && isSelectedInCurrentWeekFuture && (
+                    {!selectedIsPast && selectedIsCurrentWeek && (
                       <div className="toggle-disabled-text below-toggle">
-                        Fixed days can only be marked unavailable starting next week.
-                      </div>
-                    )}
-
-                    {isSelectedClosedFixed && (
-                      <div className="toggle-disabled-text below-toggle">
-                        {canReopenSelectedClosedFixed
-                          ? "Closed (fixed day) — you can reopen within the 24-hour grace period."
-                          : "Closed (fixed day) — reopening is no longer allowed (grace period ended)."}
+                        Current-week dates are locked. You can manage availability starting next week.
                       </div>
                     )}
                   </div>
-
-                  {selectedIsPast && (
-                    <div className="toggle-disabled-text below-toggle">
-                      Past dates cannot be opened/closed or edited.
-                    </div>
-                  )}
                 </div>
               </section>
 
@@ -984,7 +1109,7 @@ export default function MentorAvailabilityCalendar({
                     </div>
                   </div>
 
-                  <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
+                  <div className="mentoring-help" style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
                     This applies to the entire duration of the term.
                   </div>
 
@@ -1020,7 +1145,7 @@ export default function MentorAvailabilityCalendar({
                           {["00", "15", "30", "45"].map((m) => <option key={m} value={m}>{m}</option>)}
                         </select>
                         <select className="select small" value={endAmpm} onChange={(e) => setEndAmpm(e.target.value)} disabled={!editingMentorTime}>
-                          <option>AM</option><option>PM</option>
+                          <option>AM</option><option>PM </option>
                         </select>
                       </div>
                     </div>

@@ -508,7 +508,7 @@
   justify-content: center;
 
   /* lock the geometry */
-  height: 44px;            /* consistent height */
+  height: 40px;            /* consistent height */
   min-width: 140px;        /* consistent width floor */
   padding: 0 16px;         /* inner spacing */
   border-radius: 12px;     /* same corners for all */
@@ -517,6 +517,7 @@
   flex: 0 0 auto;          /* never shrink */
   flex-shrink: 0;
   border: 1px solid transparent;
+  margin-bottom: 0.5rem;
 }
 
 /* Visual variants scoped to the modal */
@@ -595,4 +596,11 @@
 .reschedule-modal .reason-row textarea::-ms-input-placeholder {
   font-family: inherit !important;
   font-style: normal !important;
+}
+
+/* Kill hover/active animations for buttons in this modal */
+.reschedule-modal .modal-actions .btn,
+.reschedule-modal .modal-actions .btn:active {
+  transition: none !important;
+  box-shadow: none !important;  /* in case the theme animates shadows */
 }

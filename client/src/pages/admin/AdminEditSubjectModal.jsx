@@ -1,5 +1,5 @@
-// AdminEditSubjectModal.jsx
 import React from "react";
+import { createPortal } from "react-dom";
 import { useSystemSettings } from "../../context/SystemSettingsContext";
 import "./AdminAddCourseInstanceModal.css"; // reuse the same styles
 
@@ -30,8 +30,20 @@ function AdminEditSubjectModal({
 
   /* -------------------- COURSE CODE VALIDATION -------------------- */
   const ALLOWED_PROGRAM_TOKENS = [
-    "IT", "BA", "MKT", "OM", "HRM", "MGT", // BA family
-    "GE", "SS", "ENG", "HUM", "MATH", "PE", "NSTP", "ENV" // GE family
+    "IT",
+    "BA",
+    "MKT",
+    "OM",
+    "HRM",
+    "MGT", // BA family
+    "GE",
+    "SS",
+    "ENG",
+    "HUM",
+    "MATH",
+    "PE",
+    "NSTP",
+    "ENV", // GE family
   ];
   const COURSE_CODE_REGEX = new RegExp(
     `^MO-(?:${ALLOWED_PROGRAM_TOKENS.join("|")})\\d{3}[A-Z0-9]*$`
@@ -77,9 +89,9 @@ function AdminEditSubjectModal({
 
   const DAY_OPTIONS = ["MWF", "TTHS"];
   const TIME_PRESETS = {
-    A: ["7:00-8:15", "8:15-9:30", "9:30-10:45"],  // AM
-    H: ["1:15-2:30", "2:30-3:45", "3:45-5:00"],   // PM
-    S: ["6:15-7:30", "7:30-8:45", "8:45-10:00"],  // PM
+    A: ["7:00-8:15", "8:15-9:30", "9:30-10:45"], // AM
+    H: ["1:15-2:30", "2:30-3:45", "3:45-5:00"], // PM
+    S: ["6:15-7:30", "7:30-8:45", "8:45-10:00"], // PM
   };
 
   const [formData, setFormData] = React.useState({
@@ -139,6 +151,14 @@ function AdminEditSubjectModal({
     const e24 = parse(re);
     if (!s24 || !e24) return range;
     return `${s24}-${e24}`;
+  };
+
+  // Availability: map meeting days → allowedDays used by calendar
+  const deriveAllowedDays = (daysRaw = "") => {
+    const s = String(daysRaw || "").toUpperCase().replace(/\s+/g, "");
+    if (s.includes("MWF")) return ["Wed", "Fri"]; // by-design (no Mon)
+    if (s.includes("TTHS") || s.includes("TTH")) return ["Thu", "Sat"];
+    return [];
   };
 
   const parseSection = (section) => {
@@ -230,15 +250,19 @@ function AdminEditSubjectModal({
   // Mentor search/filter state
   const [mentorQuery, setMentorQuery] = React.useState("");
   const [selectedProgram, setSelectedProgram] = React.useState("");
-  const [filteredMentors, setFilteredMentors] = React.useState(mentorList || []);
+  const [filteredMentors, setFilteredMentors] = React.useState(
+    mentorList || []
+  );
   const [selectedMentor, setSelectedMentor] = React.useState(null);
-  const [programManuallySelected, setProgramManuallySelected] = React.useState(false);
+  const [programManuallySelected, setProgramManuallySelected] =
+    React.useState(false);
 
   React.useEffect(() => {
     let filtered = mentorList || [];
     if (selectedProgram) {
       filtered = filtered.filter(
-        (m) => (m?.program || "").toUpperCase() === selectedProgram.toUpperCase()
+        (m) =>
+          (m?.program || "").toUpperCase() === selectedProgram.toUpperCase()
       );
     }
     if (mentorQuery.trim()) {
@@ -282,7 +306,11 @@ function AdminEditSubjectModal({
     let nextCustomEnd = "";
     let nextUseCustom = false;
 
-    const matchedPreset = findPresetIf75(initialSlot, initialTimeRaw, TIME_PRESETS);
+    const matchedPreset = findPresetIf75(
+      initialSlot,
+      initialTimeRaw,
+      TIME_PRESETS
+    );
     if (matchedPreset) {
       nextMeetingTime = matchedPreset;
     } else if (initialTimeRaw && initialTimeRaw.includes("-")) {
@@ -426,12 +454,18 @@ function AdminEditSubjectModal({
     if (!canSave) return;
 
     let scheduleTimeStr = "";
+    let start24 = "";
+    let end24 = "";
+
     if (!useCustomTime) {
-      // ✅ Store presets in unambiguous 24h format based on Time Slot
+      // Store presets in unambiguous 24h format based on Time Slot
       scheduleTimeStr = to24FromPreset(
         formData.meetingTime,
         formData.sectionTimeSlot
-      );
+      ); // "HH:mm-HH:mm"
+      const [s, e] = scheduleTimeStr.split("-");
+      start24 = s || "";
+      end24 = e || "";
     } else {
       if (
         !isCustomTimeValidForSlot(
@@ -441,10 +475,10 @@ function AdminEditSubjectModal({
         )
       )
         return;
-      // ✅ Normalize custom times to HH:mm-HH:mm
-      scheduleTimeStr = `${normalizeHHMM(
-        formData.customStartTime
-      )}-${normalizeHHMM(formData.customEndTime)}`;
+      // Normalize custom times to HH:mm-HH:mm
+      start24 = normalizeHHMM(formData.customStartTime);
+      end24 = normalizeHHMM(formData.customEndTime);
+      scheduleTimeStr = `${start24}-${end24}`;
     }
 
     const newProgram =
@@ -453,7 +487,25 @@ function AdminEditSubjectModal({
       subject.program ||
       "";
 
-    onSave({
+    // Availability payload derived from schedule — we will only include it
+    // if schedule or days changed to avoid unnecessary _meta churn.
+    const existingAvail = subject?.availability ?? {};
+    const derivedDays = deriveAllowedDays(formData.meetingDays);
+
+    const prevDays = (subject?.schedule?.days || "")
+      .toUpperCase()
+      .replace(/\s+/g, "");
+    const nextDays = (formData.meetingDays || "")
+      .toUpperCase()
+      .replace(/\s+/g, "");
+    const prevTime = subject?.schedule?.time || "";
+    const nextTime = scheduleTimeStr || "";
+
+    const scheduleChanged = prevTime !== nextTime;
+    const daysChanged = prevDays !== nextDays;
+
+    // Build payload
+    const payload = {
       ...subject,
       courseCode: normalizeCourseCode(formData.courseCode),
       courseName: formData.courseName.trim(),
@@ -463,12 +515,25 @@ function AdminEditSubjectModal({
       term: subjectTerm,
       assignedMentor: formData.mentor || subject.assignedMentor || "",
       schedule: {
-        days: formData.meetingDays,
-        time: scheduleTimeStr,         // <-- always 24h now
+        // normalized to canonical tokens without spaces
+        days: (formData.meetingDays || "").toUpperCase().replace(/\s+/g, ""),
+        time: scheduleTimeStr, // "HH:mm-HH:mm"
         timeSlot: formData.sectionTimeSlot,
       },
-    });
+    };
 
+    if (scheduleChanged || daysChanged) {
+      payload.availability = {
+        ...existingAvail, // keep openDates, closedDates, _meta, etc.
+        mentoringBlock: { start: start24, end: end24 },
+        allowedDays:
+          Array.isArray(derivedDays) && derivedDays.length > 0
+            ? derivedDays
+            : existingAvail.allowedDays ?? [],
+      };
+    }
+
+    onSave(payload);
     onClose();
   };
 
@@ -493,7 +558,11 @@ function AdminEditSubjectModal({
     let nextCustomEnd = "";
     let nextUseCustom = false;
 
-    const matchedPreset = findPresetIf75(initialSlot, initialTimeRaw, TIME_PRESETS);
+    const matchedPreset = findPresetIf75(
+      initialSlot,
+      initialTimeRaw,
+      TIME_PRESETS
+    );
     if (matchedPreset) {
       nextMeetingTime = matchedPreset;
     } else if (initialTimeRaw && initialTimeRaw.includes("-")) {
@@ -535,14 +604,9 @@ function AdminEditSubjectModal({
   if (!isOpen || !subject) return null;
 
   // --- UI (matches Add modal structure/styles) ---
-  return (
+  return createPortal(
     // Put modal ABOVE header and disable outside click-to-close
-    <div
-      className="aaci overlay"
-      style={{ zIndex: 9999 }}         // ensures it's above sticky headers/sidebars
-      aria-modal="true"
-      role="dialog"
-    >
+    <div className="aaci overlay" aria-modal="true" role="dialog">
       <div className="aaci modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="aaci header">
@@ -576,27 +640,40 @@ function AdminEditSubjectModal({
               <div className="aaci banner-warning">
                 <div className="bw-title">Please complete the following:</div>
                 <ul className="bw-list">
-                  {!formData.courseCode.trim() && <li>Course Code cannot be empty</li>}
+                  {!formData.courseCode.trim() && (
+                    <li>Course Code cannot be empty</li>
+                  )}
                   {formData.courseCode.trim() && !isCourseCodeValid && (
                     <li>
                       Course Code must look like <strong>MO-IT103</strong> or{" "}
-                      <strong>MO-ENG040</strong> (allowed prefixes: {ALLOWED_PROGRAM_TOKENS.join(", ")})
+                      <strong>MO-ENG040</strong> (allowed prefixes:{" "}
+                      {ALLOWED_PROGRAM_TOKENS.join(", ")})
                     </li>
                   )}
                   {programMismatch && (
                     <li>
-                      Program mismatch: selected <strong>{formData.program}</strong> but code indicates{" "}
+                      Program mismatch: selected{" "}
+                      <strong>{formData.program}</strong> but code indicates{" "}
                       <strong>{codeProgramFromCode}</strong>
                     </li>
                   )}
-                  {!formData.courseName.trim() && <li>Course Name cannot be empty</li>}
+                  {!formData.courseName.trim() && (
+                    <li>Course Name cannot be empty</li>
+                  )}
                   {!formData.program?.trim() && <li>Select a program</li>}
-                  {!isValidSection && <li>A valid section is required (e.g., H3102)</li>}
-                  {!formData.mentor.trim() && <li>A mentor must be assigned</li>}
-                  {!formData.meetingDays && <li>Choose meeting days (MWF or TTHS)</li>}
+                  {!isValidSection && (
+                    <li>A valid section is required (e.g., H3102)</li>
+                  )}
+                  {!formData.mentor.trim() && (
+                    <li>A mentor must be assigned</li>
+                  )}
+                  {!formData.meetingDays && (
+                    <li>Choose meeting days (MWF or TTHS)</li>
+                  )}
                   {!usingPreset && !usingCustom && (
                     <li>
-                      Choose a meeting time (presets depend on Time Slot) or enter a custom time within the slot window
+                      Choose a meeting time (presets depend on Time Slot) or
+                      enter a custom time within the slot window
                     </li>
                   )}
                   {useCustomTime &&
@@ -657,8 +734,12 @@ function AdminEditSubjectModal({
                     className="input"
                     required
                     style={
-                      formData.courseCode && (!isCourseCodeValid || programMismatch)
-                        ? { borderColor: "#ef4444", boxShadow: "0 0 0 3px rgba(239,68,68,.15)" }
+                      formData.courseCode &&
+                      (!isCourseCodeValid || programMismatch)
+                        ? {
+                            borderColor: "#ef4444",
+                            boxShadow: "0 0 0 3px rgba(239,68,68,.15)",
+                          }
                         : undefined
                     }
                   />
@@ -685,8 +766,8 @@ function AdminEditSubjectModal({
               {/* FULL-WIDTH HELP UNDER BOTH FIELDS */}
               <div className="course-duo-help">
                 <small className="help">
-                  Must match <strong>MO-XXX999</strong> (+optional suffix). Allowed XXX:{" "}
-                  {ALLOWED_PROGRAM_TOKENS.join(", ")}
+                  Must match <strong>MO-XXX999</strong> (+optional suffix).
+                  Allowed XXX: {ALLOWED_PROGRAM_TOKENS.join(", ")}
                 </small>
 
                 {formData.courseCode && !isCourseCodeValid && (
@@ -698,7 +779,8 @@ function AdminEditSubjectModal({
 
                 {programMismatch && (
                   <small className="help help-error">
-                    Program mismatch: selected <strong>{formData.program}</strong> but code indicates{" "}
+                    Program mismatch: selected{" "}
+                    <strong>{formData.program}</strong> but code indicates{" "}
                     <strong>{codeProgramFromCode}</strong>.
                   </small>
                 )}
@@ -722,7 +804,10 @@ function AdminEditSubjectModal({
                   {formData.section || "___"}
                 </div>
                 {isValidSection && formData.section ? (
-                  <div className="section-valid-badge" title="Valid section format">
+                  <div
+                    className="section-valid-badge"
+                    title="Valid section format"
+                  >
                     ✓
                   </div>
                 ) : null}
@@ -754,7 +839,8 @@ function AdminEditSubjectModal({
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        courseYear: e.target.value.replace(/[^1-4]/g, "") || "1",
+                        courseYear:
+                          e.target.value.replace(/[^1-4]/g, "") || "1",
                       }))
                     }
                     className="select"
@@ -773,8 +859,13 @@ function AdminEditSubjectModal({
                     type="text"
                     value={formData.sectionNumber}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, "").slice(0, 3);
-                      setFormData((prev) => ({ ...prev, sectionNumber: value }));
+                      const value = e.target.value
+                        .replace(/\D/g, "")
+                        .slice(0, 3);
+                      setFormData((prev) => ({
+                        ...prev,
+                        sectionNumber: value,
+                      }));
                     }}
                     placeholder="000"
                     maxLength="3"
@@ -784,7 +875,12 @@ function AdminEditSubjectModal({
               </div>
 
               <div className="helper">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                 </svg>
                 Format: [Time Slot][Course Year][3 digits] • Example: H3102
@@ -800,7 +896,10 @@ function AdminEditSubjectModal({
                 <select
                   value={formData.meetingDays}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, meetingDays: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      meetingDays: e.target.value,
+                    }))
                   }
                   className="select"
                 >
@@ -841,11 +940,13 @@ function AdminEditSubjectModal({
                     className="select flex-1"
                   >
                     <option value="">Select time</option>
-                    {(TIME_PRESETS[formData.sectionTimeSlot] || []).map((opt) => (
-                      <option key={opt} value={opt}>
-                        {formatPresetRange12h(opt, formData.sectionTimeSlot)}
-                      </option>
-                    ))}
+                    {(TIME_PRESETS[formData.sectionTimeSlot] || []).map(
+                      (opt) => (
+                        <option key={opt} value={opt}>
+                          {formatPresetRange12h(opt, formData.sectionTimeSlot)}
+                        </option>
+                      )
+                    )}
                     <option value="CUSTOM">Custom…</option>
                   </select>
                 </div>
@@ -886,9 +987,15 @@ function AdminEditSubjectModal({
                 <div className="tiny-helper">
                   Presets match the Time Slot:
                   <br />
-                  Morning (A): <strong>7:00–10:45 AM</strong> • Afternoon (H): <strong>1:15–5:00 PM</strong> • Evening (S): <strong>6:15–10:00 PM</strong>
+                  Morning (A): <strong>7:00–10:45 AM</strong> • Afternoon (H):{" "}
+                  <strong>1:15–5:00 PM</strong> • Evening (S):{" "}
+                  <strong>6:15–10:00 PM</strong>
                   <br />
-                  Example: <strong>{formatPresetRange12h("7:00-8:15", formData.sectionTimeSlot)}</strong> / MWF
+                  Example:{" "}
+                  <strong>
+                    {formatPresetRange12h("7:00-8:15", formData.sectionTimeSlot)}
+                  </strong>{" "}
+                  / MWF
                 </div>
               </div>
             </div>
@@ -937,7 +1044,11 @@ function AdminEditSubjectModal({
                   <span className="selected-pill-text">
                     Selected: {selectedMentor.name}{" "}
                     {selectedMentor.program ? (
-                      <span className={`pg ${getProgramBadgeStyle(selectedMentor.program)}`}>
+                      <span
+                        className={`pg ${getProgramBadgeStyle(
+                          selectedMentor.program
+                        )}`}
+                      >
                         {selectedMentor.program}
                       </span>
                     ) : null}
@@ -950,7 +1061,14 @@ function AdminEditSubjectModal({
                       setFormData((prev) => ({ ...prev, mentor: "" }));
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                   </button>
@@ -973,7 +1091,9 @@ function AdminEditSubjectModal({
                         <div className="mentor-email">{m.email}</div>
                       </div>
                       {m.program ? (
-                        <span className={`pg ${getProgramBadgeStyle(m.program)}`}>
+                        <span
+                          className={`pg ${getProgramBadgeStyle(m.program)}`}
+                        >
                           {(m.program || "").toUpperCase()}
                         </span>
                       ) : null}
@@ -989,17 +1109,14 @@ function AdminEditSubjectModal({
               <div className="preview-card">
                 <div className="preview-row">
                   <h3 className="preview-title">
-                    {normalizeCourseCode(formData.courseCode)} - {formData.courseName}
+                    {normalizeCourseCode(formData.courseCode)} -{" "}
+                    {formData.courseName}
                   </h3>
-                  {formData.program && (
-                    <span className={`pg ${getProgramBadgeStyle(formData.program)}`}>
-                      {formData.program}
-                    </span>
-                  )}
                 </div>
 
                 <div className="preview-sub">
-                  Section {formData.section || "---"} • {formData.mentor || "---"}
+                  Section {formData.section || "---"} •{" "}
+                  {formData.mentor || "---"}
                 </div>
 
                 {/* Use the subject’s actual period, not systemSettings */}
@@ -1010,7 +1127,8 @@ function AdminEditSubjectModal({
                 <div className="preview-sub">
                   {formData.meetingDays || previewTimeStr ? (
                     <>
-                      {formData.meetingDays || "---"} • {previewTimeStr || "---"}
+                      {formData.meetingDays || "---"} •{" "}
+                      {previewTimeStr || "---"}
                     </>
                   ) : (
                     "Schedule ---"
@@ -1040,7 +1158,8 @@ function AdminEditSubjectModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

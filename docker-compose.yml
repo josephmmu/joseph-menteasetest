@@ -1,6 +1,10 @@
 services:
   client:
-    build: ./client
+    build:
+      context: ./client
+      args:
+        BASE_REGISTRY: mirror.gcr.io
+        BASE_IMAGE: library/node:18-alpine
     ports:
       - "3000:3000"
     environment:
@@ -12,7 +16,11 @@ services:
       - server
 
   server:
-    build: ./server
+    build:
+      context: ./server
+      args:
+        BASE_REGISTRY: mirror.gcr.io
+        BASE_IMAGE: library/node:18-alpine
     ports:
       - "5001:5000"
     volumes:

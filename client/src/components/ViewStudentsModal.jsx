@@ -172,32 +172,18 @@ export default function ViewStudentsModal({
 
   const fetchAllUsersForSuggestions = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/users`, { headers: authHeaders });
+      // Use mentor-accessible search endpoint instead of admin-only /api/users
+      const res = await fetch(`${API}/api/users/students/search?q=`, {
+        headers: authHeaders,
+      });
       if (!res.ok) return [];
       const data = await res.json();
       const arr = Array.isArray(data) ? data : [];
-
-      const isStudent = (u) => {
-        const candidates = [u.role, u.roleName, u.type, u.roles].filter(
-          Boolean
-        );
-        for (const r of candidates) {
-          if (Array.isArray(r)) {
-            if (r.some((x) => String(x).toLowerCase().includes("student")))
-              return true;
-          } else if (String(r).toLowerCase().includes("student")) return true;
-        }
-        return !!u.isStudent;
-      };
-
       return arr
-        .filter(isStudent)
         .map((u) => ({
           _id: u._id || u.id,
           name:
-            u.name ||
-            `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
-            u.email,
+            u.name || `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
           email: u.email,
         }))
         .filter((u) => u.email);
@@ -602,15 +588,15 @@ export default function ViewStudentsModal({
         className="modal-overlay view-students-overlay"
         role="dialog"
         aria-modal="true"
-        onClick={() => {
-          if (!deleteConfirm) onClose();
-        }}
       >
         <div
           className="modal-content view-students-modal"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="view-students-header">
+          <div
+            className="view-students-header"
+            style={{ marginBottom: showAddForm ? "-0.8rem" : "1.0rem" }}
+          >
             <h2>
               Students in {subject} - {section}
             </h2>
@@ -875,7 +861,6 @@ export default function ViewStudentsModal({
         {deleteConfirm && (
           <div
             className="modal-overlay view-students-overlay"
-            onClick={() => setDeleteConfirm(null)}
           >
             <div
               className="modal-content view-students-modal confirm-panel"

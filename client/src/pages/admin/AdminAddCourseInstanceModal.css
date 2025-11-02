@@ -6,7 +6,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  /* Keep above fixed header and other admin UI (header ~1000-1200) */
+  z-index: 5100;
 }
 .aaci.modal {
   background: #fff;

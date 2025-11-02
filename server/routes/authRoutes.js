@@ -92,4 +92,14 @@ router.put("/update-program", verifyToken, async (req, res) => {
   }
 });
 
+router.get("/me", verifyToken, (req, res) => {
+  const u = req.user || {};
+  res.json({
+    _id: u._id || u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+  });
+});
+
 module.exports = router;

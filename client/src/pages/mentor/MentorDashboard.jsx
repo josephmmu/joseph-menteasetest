@@ -1,3 +1,4 @@
+﻿// src/pages/mentor/MentorDashboard.jsx
 import React, {
   useState,
   useEffect,
@@ -5,8 +6,9 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { Link } from "react-router-dom";
+// import { Link } from "react-router-dom"; // ⟵ no longer needed
 import "../student/StudentDashboard.css"; // reuse styles
+import "../student/MySchedule.css"; // NEW: reuse is-today / dimmed-not-live styles
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 import MobileNav from "../../components/MobileNav";
@@ -18,12 +20,16 @@ import { useSystemSettings } from "../../context/SystemSettingsContext";
 import { useAuth } from "../../context/AuthContext";
 
 /* ============== API base ============== */
-const API =
-  (import.meta?.env?.VITE_API_BASE_URL ||
-    process.env.REACT_APP_API_URL ||
-    process.env.REACT_APP_API_BASE_URL ||
-    "http://localhost:5000"
-  ).replace(/\/+$/, "");
+const API = (
+  import.meta?.env?.VITE_API_BASE_URL ||
+  process.env.REACT_APP_API_URL ||
+  process.env.REACT_APP_API_BASE_URL ||
+  "http://localhost:5000"
+).replace(/\/+$/, "");
+
+const ENABLE_USER_LOOKUPS =
+  (import.meta?.env?.VITE_ENABLE_USER_LOOKUPS ??
+    process.env.REACT_APP_ENABLE_USER_LOOKUPS) === "1";
 
 const tokenHeaders = () => {
   const t = localStorage.getItem("token");
@@ -85,6 +91,17 @@ const formatWhenRange = (startISO, endISO, fallbackMinutes = 30) => {
   return `${date} - ${time(start)}–${time(end)}`;
 };
 
+/* NEW: humanize ms for countdown in toast (copied from StudentDashboard) */
+const humanizeMs = (ms) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const parts = [];
+  if (h) parts.push(`${h}h`);
+  if (m || !h) parts.push(`${m}m`);
+  return parts.join(" ");
+};
+
 export default function MentorDashboard() {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1280
@@ -108,6 +125,13 @@ export default function MentorDashboard() {
 
   const { getCourseColor, normalizeCourseKey } = useCourseColor();
   const { academicTerm } = useSystemSettings();
+
+  // NEW: keep “now” fresh for live/today detection
+  const [nowTs, setNowTs] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, []);
 
   // ===== Courses for this mentor =====
   const [allCourses, setAllCourses] = useState([]);
@@ -134,17 +158,23 @@ export default function MentorDashboard() {
       const uid = (user?._id || user?.id || "").toString();
       const termQS =
         academicTerm?.schoolYear && academicTerm?.term
-          ? `year=${encodeURIComponent(academicTerm.schoolYear)}&term=${encodeURIComponent(
-              academicTerm.term
-            )}`
+          ? `year=${encodeURIComponent(
+              academicTerm.schoolYear
+            )}&term=${encodeURIComponent(academicTerm.term)}`
           : "";
       const appendQS = (url) =>
-        termQS ? (url.includes("?") ? `${url}&${termQS}` : `${url}?${termQS}`) : url;
+        termQS
+          ? url.includes("?")
+            ? `${url}&${termQS}`
+            : `${url}?${termQS}`
+          : url;
 
       const endpoints = [
         appendQS(`${API}/api/courses/mine`),
         appendQS(`${API}/api/courses?mine=1`),
-        uid ? appendQS(`${API}/api/courses?mentorId=${encodeURIComponent(uid)}`) : null,
+        uid
+          ? appendQS(`${API}/api/courses?mentorId=${encodeURIComponent(uid)}`)
+          : null,
         `${API}/api/courses`,
       ].filter(Boolean);
 
@@ -176,8 +206,12 @@ export default function MentorDashboard() {
 
   // Who am I
   const meId = toIdString(user?._id || user?.id);
-  const meName = String(user?.name || "").toLowerCase().trim();
-  const meEmail = String(user?.email || "").toLowerCase().trim();
+  const meName = String(user?.name || "")
+    .toLowerCase()
+    .trim();
+  const meEmail = String(user?.email || "")
+    .toLowerCase()
+    .trim();
 
   const isMine = (course) => {
     if (!course) return false;
@@ -199,7 +233,9 @@ export default function MentorDashboard() {
       .toLowerCase()
       .trim();
 
-    const mentorEmail = String(course.mentorEmail || "").toLowerCase().trim();
+    const mentorEmail = String(course.mentorEmail || "")
+      .toLowerCase()
+      .trim();
 
     return (
       (!!meId && !!mentorIdStr && mentorIdStr === meId) ||
@@ -215,9 +251,17 @@ export default function MentorDashboard() {
       if (!academicTerm) return true;
       const termVal = c.term ?? c.raw?.term;
       const sy = c.schoolYear ?? c.raw?.schoolYear;
-      if (termVal && academicTerm.term && Number(termVal) !== Number(academicTerm.term))
+      if (
+        termVal &&
+        academicTerm.term &&
+        Number(termVal) !== Number(academicTerm.term)
+      )
         return false;
-      if (sy && academicTerm.schoolYear && String(sy) !== String(academicTerm.schoolYear))
+      if (
+        sy &&
+        academicTerm.schoolYear &&
+        String(sy) !== String(academicTerm.schoolYear)
+      )
         return false;
       return true;
     };
@@ -242,7 +286,10 @@ export default function MentorDashboard() {
 
   // Program modal
   useEffect(() => {
-    if (user && (!user.program || user.program === "" || user.program === null)) {
+    if (
+      user &&
+      (!user.program || user.program === "" || user.program === null)
+    ) {
       setShowProgramModal(true);
     } else {
       setShowProgramModal(false);
@@ -266,8 +313,8 @@ export default function MentorDashboard() {
   }, []);
   const isMobile = windowWidth <= 1152;
 
-  // Toast helper
-  const showToast = (msg, type = "info") => {
+  // Toast helper — allow custom duration like StudentDashboard
+  const showToast = (msg, type = "info", stayMs = 3000) => {
     if (toastLock.current) return;
     toastLock.current = true;
     setToast({ msg, type });
@@ -276,7 +323,7 @@ export default function MentorDashboard() {
       setToast({ msg: "", type: "info" });
       toastLock.current = false;
       toastTimer.current = null;
-    }, 3000);
+    }, stayMs);
   };
 
   // Hydrate meetingLinks
@@ -312,7 +359,8 @@ export default function MentorDashboard() {
 
   useEffect(() => {
     return () => {
-      if (refreshCoursesTimer.current) clearTimeout(refreshCoursesTimer.current);
+      if (refreshCoursesTimer.current)
+        clearTimeout(refreshCoursesTimer.current);
     };
   }, []);
 
@@ -343,7 +391,12 @@ export default function MentorDashboard() {
      - 3 => "John Smith, 2+"
   */
   const formatStudentDisplay = (students) => {
-    const arr = Array.isArray(students) ? students.map(String).map((s) => s.trim()).filter(Boolean) : [];
+    const arr = Array.isArray(students)
+      ? students
+          .map(String)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
     const uniq = Array.from(new Set(arr));
     if (uniq.length === 0) return "—";
     if (uniq.length === 1) return uniq[0];
@@ -361,7 +414,10 @@ export default function MentorDashboard() {
     setIsLoadingSessions(true);
     setSessionsError("");
     try {
-      const tryUrls = [`${API}/api/sessions/mine?as=mentor`, `${API}/api/sessions/mine`];
+      const tryUrls = [
+        `${API}/api/sessions/mine?as=mentor`,
+        `${API}/api/sessions/mine`,
+      ];
 
       let data = [];
       let ok = false;
@@ -430,49 +486,25 @@ export default function MentorDashboard() {
 
   const fetchUsersBulk = useCallback(
     async (ids) => {
-      const headers = tokenHeaders();
-      const idList = ids.join(",");
-
-      const getCandidates = [
-        `${API}/api/users/bulk?ids=${encodeURIComponent(idList)}`,
-        `${API}/api/users/lookup?ids=${encodeURIComponent(idList)}`,
-        `${API}/api/users?ids=${encodeURIComponent(idList)}`,
-      ];
-
-      for (const url of getCandidates) {
-        try {
-          const r = await fetch(url, { headers, credentials: "include" });
-          if (r.ok) {
-            const arr = await r.json();
-            const list = Array.isArray(arr)
-              ? arr
-              : Array.isArray(arr?.data)
-              ? arr.data
-              : Array.isArray(arr?.results)
-              ? arr.results
-              : [];
-            if (list.length) {
-              const pairs = list.map((u) => [toIdString(u._id || u.id), nameFromUser(u)]);
-              upsertNames(pairs);
-              return true;
-            }
-          }
-        } catch {}
-      }
-
-      // fallback: GET each
-      for (const id of ids) {
-        try {
-          const r = await fetch(`${API}/api/users/${id}`, {
-            headers,
-            credentials: "include",
-          });
-          if (r.ok) {
-            const u = await r.json();
-            if (u) upsertNames([[toIdString(u._id || u.id || id), nameFromUser(u)]]);
-          }
-        } catch {}
-      }
+      if (!ENABLE_USER_LOOKUPS || !ids || !ids.length) return false;
+      try {
+        const res = await fetch(`${API}/api/users/names`, {
+          method: "POST",
+          headers: tokenHeaders(),
+          credentials: "include",
+          body: JSON.stringify({ ids }),
+        });
+        if (!res.ok) return false;
+        const list = await res.json();
+        if (Array.isArray(list) && list.length) {
+          const pairs = list.map((u) => [
+            toIdString(u._id || u.id),
+            nameFromUser(u),
+          ]);
+          upsertNames(pairs);
+          return true;
+        }
+      } catch {}
       return false;
     },
     [API, upsertNames]
@@ -482,8 +514,15 @@ export default function MentorDashboard() {
     const ids = new Set();
 
     (rawSessions || []).forEach((s) => {
-      if (s.createdBy && looksLikeObjectId(s.createdBy)) ids.add(toIdString(s.createdBy));
-      const maybeArrs = [s.studentIds, s.memberIds, s.members, s.participants, s.students];
+      if (s.createdBy && looksLikeObjectId(s.createdBy))
+        ids.add(toIdString(s.createdBy));
+      const maybeArrs = [
+        s.studentIds,
+        s.memberIds,
+        s.members,
+        s.participants,
+        s.students,
+      ];
       maybeArrs.forEach((arr) => {
         if (!Array.isArray(arr)) return;
         arr.forEach((x) => {
@@ -503,9 +542,9 @@ export default function MentorDashboard() {
   }, [rawSessions]);
 
   const namesFromSession = (s) => {
-    // Prefer server-provided names
     if (Array.isArray(s.students) && s.students.length) return s.students;
-    if (Array.isArray(s.studentNames) && s.studentNames.length) return s.studentNames;
+    if (Array.isArray(s.studentNames) && s.studentNames.length)
+      return s.studentNames;
 
     const list = [];
 
@@ -524,11 +563,17 @@ export default function MentorDashboard() {
       }
     };
 
-    [s.participants, s.memberIds, s.members, s.studentIds, s.group, s.groupMembers].forEach((arr) => {
+    [
+      s.participants,
+      s.memberIds,
+      s.members,
+      s.studentIds,
+      s.group,
+      s.groupMembers,
+    ].forEach((arr) => {
       if (Array.isArray(arr)) arr.forEach(pushName);
     });
 
-    // Single-value fallback (try creator)
     if (!list.length && s.createdBy) {
       if (looksLikeObjectId(s.createdBy)) {
         const n = studentNameMap[s.createdBy];
@@ -545,14 +590,19 @@ export default function MentorDashboard() {
   };
 
   const upcomingSessions = useMemo(() => {
-    const nowTs = Date.now();
+    // Recompute whenever the clock ticks so items move from “upcoming” -> “live”
+    const now = nowTs;
+
     return (rawSessions || [])
       .map((s) => {
         const courseId =
           toIdString(s.offeringID) ||
+          toIdString(s.offeringId) ||
+          toIdString(s.courseInstanceId) ||
           toIdString(s.courseId) ||
           toIdString(s.courseID) ||
           "";
+
         const course = courseById.get(courseId);
 
         const subject = course
@@ -561,12 +611,16 @@ export default function MentorDashboard() {
         const section = course?.section || "";
 
         const startISO = s.scheduleStart || s.startISO;
-        const endISO = s.scheduleEnd || s.endISO;
+        const endISO   = s.scheduleEnd   || s.endISO;
+
         const startTs = startISO ? new Date(startISO).getTime() : NaN;
+        const endTs = endISO
+          ? new Date(endISO).getTime()
+          : (Number.isFinite(startTs) ? startTs + 30 * 60 * 1000 : NaN); // 30-min fallback
 
         const meet =
           s.meetLink ||
-          (meetingLinks[`${subject}__${section}`] || "") ||
+          meetingLinks[`${subject}__${section}`] ||
           course?.defaultMeetLink ||
           "";
 
@@ -579,16 +633,25 @@ export default function MentorDashboard() {
           startISO,
           endISO,
           startTs,
+          endTs,
           meetLink: meet,
           status: s.status || "pending",
           students,
           topic: s.topic || "—",
         };
       })
-      .filter((x) => x.startTs && x.startTs >= nowTs && x.status !== "cancelled")
+      // Keep anything that hasn’t ended yet (so LIVE sessions remain visible)
+      .filter(
+        (x) =>
+          Number.isFinite(x.startTs) &&
+          Number.isFinite(x.endTs) &&
+          x.status !== "cancelled" &&
+          x.endTs > now
+      )
       .sort((a, b) => a.startTs - b.startTs)
       .slice(0, 5);
-  }, [rawSessions, courseById, meetingLinks, studentNameMap]);
+    // IMPORTANT: depend on nowTs so the list “ticks”
+  }, [rawSessions, courseById, meetingLinks, studentNameMap, nowTs]);
 
   const onJoinSession = (session) => {
     const key = `${session.subject}__${session.section}`;
@@ -602,7 +665,9 @@ export default function MentorDashboard() {
     const safeISO = (parsed ? parsed : new Date()).toISOString();
 
     const qs = new URLSearchParams({
-      id: `${normalizeCourseKey(`${session.subject} ${session.section}`)}__${safeISO}`,
+      id: `${normalizeCourseKey(
+        `${session.subject} ${session.section}`
+      )}__${safeISO}`,
       subject: session.subject,
       section: session.section,
       topic: session.topic || "",
@@ -616,10 +681,190 @@ export default function MentorDashboard() {
       "width=560,height=640,left=100,top=100"
     );
     if (!notesWin) {
-      showToast("Please allow pop-ups to open the Session Notes window.", "error");
+      showToast(
+        "Please allow pop-ups to open the Session Notes window.",
+        "error"
+      );
       return;
     }
     window.location.assign(url);
+  };
+
+  /* =========================
+     RECENT Session Notes (DB-backed)
+     ========================= */
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [notesError, setNotesError] = useState("");
+  const [recentNotes, setRecentNotes] = useState([]);
+
+  const pick = (...cands) => {
+    for (const c of cands) {
+      if (c === null || c === undefined) continue;
+      const s = String(c).trim();
+      if (s) return s;
+    }
+    return "";
+  };
+
+  const extractStudentsFromRaw = (rs) => {
+    const arr =
+      rs?.participants ||
+      rs?.members ||
+      rs?.attendees ||
+      rs?.students ||
+      [];
+    if (!Array.isArray(arr)) return [];
+    const names = arr
+      .map((p) => {
+        const u = p?.user || p;
+        return (
+          u?.name ||
+          u?.fullName ||
+          [u?.firstName, u?.lastName].filter(Boolean).join(" ").trim() ||
+          u?.displayName ||
+          u?.username ||
+          u?.email ||
+          ""
+        );
+      })
+      .filter(Boolean);
+    return Array.from(new Set(names));
+  };
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setNotesLoading(true);
+      setNotesError("");
+      try {
+        const res = await fetch(`${API}/api/session-notes/mine`, {
+          headers: tokenHeaders(),
+          credentials: "include",
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(`${res.status}: ${txt || "Failed to load notes"}`);
+        }
+        const data = await res.json();
+        const list =
+          Array.isArray(data?.notes) ? data.notes : Array.isArray(data) ? data : [];
+
+        const normalized = (list || []).map((n, idx) => {
+          const rs = n.rawSession || {};
+          const subject = pick(
+            n.subject,
+            n.subjectText,
+            rs.subject?.code && rs.subject?.name
+              ? `${rs.subject.code} ${rs.subject.name}`
+              : null,
+            rs.courseCode && rs.courseName
+              ? `${rs.courseCode} ${rs.courseName}`
+              : null,
+            rs.courseCode,
+            rs.courseName
+          ) || "Course";
+
+          const section = pick(
+            n.section,
+            n.sectionText,
+            rs.section?.name,
+            rs.section?.code,
+            rs.sectionName,
+            rs.sectionCode,
+            rs.block,
+            rs.section
+          );
+
+          const topic = pick(n.topic, rs.topic) || "—";
+
+          const startISO = pick(
+            rs.scheduleStart,
+            n.dateTimeISO,
+            rs.startISO,
+            rs.startDateTime
+          );
+          const endISO = pick(rs.scheduleEnd, n.endISO, rs.endISO);
+
+          const sessionId = toIdString(
+            n.session ||
+              n.sessionId ||
+              rs._id ||
+              rs.id ||
+              rs.sessionId ||
+              rs.sessionID ||
+              rs.meetingId ||
+              rs.meetingID
+          );
+
+          const students =
+            Array.isArray(n.students) && n.students.length
+              ? n.students
+              : extractStudentsFromRaw(rs);
+
+          const id = toIdString(n._id || n.id) || `${subject}-${section}-${startISO || idx}`;
+          return {
+            id,
+            sessionId,
+            subject,
+            section,
+            topic,
+            startISO,
+            endISO,
+            dateTimeLabel: formatWhenRange(startISO, endISO),
+            students,
+            _ts: startISO ? new Date(startISO).getTime() : NaN,
+          };
+        });
+
+        const topFive = normalized
+          .sort((a, b) => (isNaN(b._ts) ? -1 : b._ts) - (isNaN(a._ts) ? -1 : a._ts))
+          .slice(0, 5);
+
+        if (alive) setRecentNotes(topFive);
+      } catch (e) {
+        console.error(e);
+        if (alive) setNotesError(String(e.message || e));
+      } finally {
+        if (alive) setNotesLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [API]);
+
+  const openFloatingNote = (note) => {
+    const startRaw = note.startISO || note.dateTimeISO || new Date().toISOString();
+    const start = new Date(startRaw);
+    const safeISO = isNaN(start.getTime()) ? new Date().toISOString() : start.toISOString();
+
+    const clientKey = `${normalizeCourseKey(
+      `${note.subject || "Course"} ${note.section || ""}`.trim()
+    )}__${safeISO}`;
+
+    const qs = new URLSearchParams({
+      clientKey,
+      noteId: note.id || "",
+      subject: note.subject || "",
+      section: note.section || "",
+      topic: note.topic || "",
+      student: Array.isArray(note.students) ? note.students.join(", ") : "",
+      dateTimeISO: safeISO,
+      startISO: safeISO,
+      endISO: note.endISO || "",
+      hideBack: "1",
+    });
+
+    const win = window.open(
+      `/session-notes-popup?${qs.toString()}`,
+      "MentEaseNotes",
+      "width=560,height=640,left=100,top=100"
+    );
+    if (win) {
+      try {
+        win.focus();
+      } catch {}
+    }
   };
 
   return (
@@ -663,7 +908,11 @@ export default function MentorDashboard() {
             {isLoadingCourses ? (
               <div className="card-grid mysubjects-grid">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div className="card skeleton-card" key={`skeleton-${i}`} aria-hidden="true">
+                  <div
+                    className="card skeleton-card"
+                    key={`skeleton-${i}`}
+                    aria-hidden="true"
+                  >
                     <div className="skeleton-line title" />
                     <div className="skeleton-chip" />
                     <div className="skeleton-btn" />
@@ -671,7 +920,9 @@ export default function MentorDashboard() {
                 ))}
               </div>
             ) : coursesError ? (
-              <p className="empty-msg" style={{ color: "#ef4444" }}>{coursesError}</p>
+              <p className="empty-msg" style={{ color: "#ef4444" }}>
+                {coursesError}
+              </p>
             ) : mySubjectsData.length === 0 ? (
               <p className="empty-msg">No assigned courses yet.</p>
             ) : (
@@ -679,12 +930,17 @@ export default function MentorDashboard() {
                 {mySubjectsData.map((item, i) => {
                   const subjectKey = `${item.subject} ${item.section}`;
                   return (
-                    <div className="card is-colored" key={i} style={cardVars(subjectKey)}>
+                    <div
+                      className="card is-colored"
+                      key={i}
+                      style={cardVars(subjectKey)}
+                    >
                       <p className="subject-title">
                         {item.subject} {item.section ? `- ${item.section}` : ""}
                       </p>
                       <p className="mentor-name">
-                        {item.studentCount} {item.studentCount === 1 ? "Student" : "Students"}
+                        {item.studentCount}{" "}
+                        {item.studentCount === 1 ? "Student" : "Students"}
                       </p>
                       <button
                         className="action-btn"
@@ -709,7 +965,11 @@ export default function MentorDashboard() {
             {isLoadingSessions ? (
               <div className="card-grid sessions-grid">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div className="card skeleton-card" key={`sess-skel-${i}`} aria-hidden="true">
+                  <div
+                    className="card skeleton-card"
+                    key={`sess-skel-${i}`}
+                    aria-hidden="true"
+                  >
                     <div className="skeleton-line title" />
                     <div className="skeleton-line" />
                     <div className="skeleton-btn" />
@@ -717,76 +977,153 @@ export default function MentorDashboard() {
                 ))}
               </div>
             ) : sessionsError ? (
-              <p className="empty-msg" style={{ color: "#ef4444" }}>{sessionsError}</p>
+              <p className="empty-msg" style={{ color: "#ef4444" }}>
+                {sessionsError}
+              </p>
             ) : upcomingSessions.length === 0 ? (
               <p className="empty-msg">No upcoming sessions.</p>
             ) : (
               <div className="card-grid sessions-grid">
-                {upcomingSessions.map((s) => (
-                  <div
-                    className="card upcoming-session is-colored"
-                    key={s.id}
-                    style={cardVars(s.subject)}
-                  >
-                    {/* 1) Date/Time (AM/PM) */}
-                    <p className="session-date">{formatWhenRange(s.startISO, s.endISO)}</p>
+                {upcomingSessions.map((s) => {
+                  // Detect live & today for styling
+                  const startTs = s.startTs;
+                  const endTs = s.endISO
+                    ? new Date(s.endISO).getTime()
+                    : (Number.isFinite(startTs) ? startTs + 30 * 60 * 1000 : NaN);
+                  const hasTimes = Number.isFinite(startTs) && Number.isFinite(endTs);
+                  const live = hasTimes && nowTs >= startTs && nowTs < endTs;
 
-                    {/* 2) Subject & Section */}
-                    <p className="session-subject">
-                      {s.subject} {s.section ? `- ${s.section}` : ""}
-                    </p>
+                  const isToday =
+                    Number.isFinite(startTs) &&
+                    new Date(startTs).toDateString() ===
+                      new Date(nowTs).toDateString();
 
-                    {/* 3) Topic */}
-                    <div className="session-topic">
-                      <span className="row-label">Topic:</span> {s.topic || "—"}
+                  const cardClass = `card upcoming-session is-colored ${
+                    (live || isToday) ? "is-today" : "dimmed-not-live"
+                  }`;
+
+                  return (
+                    <div
+                      className={cardClass}
+                      key={s.id}
+                      style={cardVars(s.subject)}
+                    >
+                      {/* 1) Date/Time (AM/PM) */}
+                      <p className="session-date">
+                        {formatWhenRange(s.startISO, s.endISO)}
+                      </p>
+
+                      {/* 2) Subject & Section */}
+                      <p className="session-subject">
+                        {s.subject} {s.section ? `- ${s.section}` : ""}
+                      </p>
+
+                      {/* 3) Topic */}
+                      <div className="session-topic">
+                        <span className="row-label">Topic:</span> {s.topic || "—"}
+                      </div>
+
+                      {/* 4) Students (name or "Name, 2+") */}
+                      <p className="session-people">
+                        {formatStudentDisplay(s.students)}
+                      </p>
+
+                      <button
+                        className="action-btn join-btn"
+                        data-disabled={!live} // gating by live window (like student)
+                        onClick={() => {
+                          // ===== Toast-based JOIN gating (copied behavior) =====
+                          if (!hasTimes) {
+                            showToast(
+                              "Schedule time is missing. Please contact admin.",
+                              "error",
+                              4200
+                            );
+                            return;
+                          }
+                          if (nowTs < startTs) {
+                            showToast(
+                              `Not yet — you can join only ${formatWhenRange(s.startISO, s.endISO)} • Starts in ${humanizeMs(startTs - nowTs)}`,
+                              "info",
+                              4200
+                            );
+                            return;
+                          }
+                          if (nowTs >= endTs) {
+                            showToast("This session has already ended.", "error", 4200);
+                            return;
+                          }
+
+                          onJoinSession(s);
+                        }}
+                      >
+                        JOIN NOW
+                      </button>
                     </div>
-
-                    {/* 4) Students (name or "Name, 2+") */}
-                    <p className="session-people">{formatStudentDisplay(s.students)}</p>
-
-                    <button className="action-btn join-btn" onClick={() => onJoinSession(s)}>
-                      JOIN NOW
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* Recent Notes (sample) */}
+          {/* Recent Session Notes */}
           <div className="section notes-section">
             <h2>Recent Session Notes</h2>
-            <div className="card-grid notes-grid">
-              {[
-                {
-                  id: "it115-s3103-2025-07-28-2046",
-                  subject: "MO-IT115 Object-Oriented Analysis and Design",
-                  section: "S3103",
-                  students: ["John Dela Cruz"],
-                  dateTime: "July 28, 2025 - 8:46 PM",
-                  excerpt: "08:46 — Recap: inconsistent actor lifelines...",
-                },
-              ]
-                .map((n) => ({ ...n, _dt: new Date(n.dateTime) }))
-                .filter((n) => n._dt)
-                .sort((a, b) => b._dt - a._dt)
-                .slice(0, 5)
-                .map((note) => (
-                  <div className="card notes-card is-colored" key={note.id} style={cardVars(note.subject)}>
+
+            {notesLoading ? (
+              <div className="card-grid notes-grid">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    className="card skeleton-card"
+                    key={`notes-skel-${i}`}
+                    aria-hidden="true"
+                  >
+                    <div className="skeleton-line title" />
+                    <div className="skeleton-line" />
+                    <div className="skeleton-line" />
+                    <div className="skeleton-btn" />
+                  </div>
+                ))}
+              </div>
+            ) : notesError ? (
+              <p className="empty-msg" style={{ color: "#ef4444" }}>
+                {notesError}
+              </p>
+            ) : recentNotes.length === 0 ? (
+              <p className="empty-msg">No session notes available.</p>
+            ) : (
+              <div className="card-grid notes-grid">
+                {recentNotes.map((note) => (
+                  <div
+                    className="card notes-card is-colored"
+                    key={note.id}
+                    style={cardVars(note.subject)}
+                  >
                     <div className="card-content">
-                      <p className="notes-date">{note.dateTime}</p>
+                      <p className="notes-date">{note.dateTimeLabel}</p>
                       <p className="notes-subject">
-                        {note.subject} - {note.section}
+                        {note.subject} {note.section ? `- ${note.section}` : ""}
                       </p>
-                      <p className="notes-mentor">{formatStudentDisplay(note.students)}</p>
-                      <div className="note-preview">{(note.excerpt || "").slice(0, 50)}...</div>
-                      <Link className="action-btn" to={`/mentor/session-notes/${note.id}`}>
+                      <p className="notes-mentor">
+                        {formatStudentDisplay(note.students)}
+                      </p>
+
+                      <div className="note-preview">
+                        <strong>Topic:</strong> {note.topic || "—"}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="action-btn"
+                        onClick={() => openFloatingNote(note)}
+                      >
                         View Full Notes
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 ))}
-            </div>
+              </div>
+            )}
           </div>
         </main>
       </div>

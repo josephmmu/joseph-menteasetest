@@ -1,3 +1,4 @@
+// src/pages/Notifications.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
@@ -15,7 +16,7 @@ const API =
   ).replace(/\/+$/, "");
 
 const tokenHeaders = () => {
-  const t = localStorage.getItem("token");
+  const t = typeof localStorage !== "undefined" ? localStorage.getItem("token") : null;
   return t
     ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }
     : { "Content-Type": "application/json" };
@@ -34,7 +35,7 @@ const toIdString = (v) =>
   (v && (v._id || v.id || v.notification_id || v.$id || v.$oid || v).toString()) || "";
 
 /* =========================
-   Chip colors (unchanged)
+   Chip colors
    ========================= */
 const TYPE_META = {
   session: { label: "My Schedule", fg: "#0b3b8a", bg: "#e7f0ff" },
@@ -151,16 +152,75 @@ async function markAllNotificationsRead() {
 }
 
 /* =========================
+   Skeleton components
+   ========================= */
+function NotifSkeletonCard() {
+  return (
+    <li className="notification-card skeleton-card" aria-hidden="true">
+      <div className="notif-top-row">
+        <div className="notif-top-left">
+          <div className="skeleton skeleton-chip" />
+        </div>
+        <div className="skeleton skeleton-time" />
+      </div>
+      <div className="skeleton skeleton-title" />
+      <div className="skeleton skeleton-text" />
+      <div className="skeleton skeleton-text short" />
+    </li>
+  );
+}
+function NotifSkeletonList({ count = 6 }) {
+  return (
+    <ul className="notification-list" aria-busy="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <NotifSkeletonCard key={`skel-${i}`} />
+      ))}
+    </ul>
+  );
+}
+
+/* =========================
+   Pagination helpers (MySchedule/MyFeedback-style)
+   ========================= */
+const getPaginationItems = (current, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const base = [];
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || Math.abs(i - current) <= 1) base.push(i);
+  }
+  const items = [];
+  let prev = 0;
+  for (const p of base) {
+    if (prev) {
+      const gap = p - prev;
+      if (gap === 2) items.push(prev + 1);
+      else if (gap > 2) items.push("...");
+    }
+    items.push(p);
+    prev = p;
+  }
+  return items;
+};
+
+/* =========================
    Component
    ========================= */
 export default function Notifications() {
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 1152);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1280
+  );
+  const isMobile = windowWidth <= 1152;
+
   const [filter, setFilter] = useState("all");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 6;
+
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 1152);
+    const onResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -172,6 +232,7 @@ export default function Notifications() {
       arr.sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
       setItems(arr);
       setLoading(false);
+      setCurrentPage(1); // reset to first page on initial load
     })();
   }, []);
 
@@ -179,15 +240,28 @@ export default function Notifications() {
     let base = items;
     if (filter === "unread") base = items.filter((n) => !n.read);
     else if (filter !== "all") base = items.filter((n) => n.type === filter);
-    return [...base].sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
+    const sorted = [...base].sort(
+      (a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)
+    );
+    return sorted;
   }, [filter, items]);
 
-  const handleOpen = async (idx) => {
-    const item = filtered[idx];
-    if (!item) return;
-    setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));
-    await markNotificationRead(item.id);
-    window.location.assign(item.link || "/");
+  // reset page when filter changes or list length changes
+  useEffect(() => setCurrentPage(1), [filter]);
+  useEffect(() => setCurrentPage(1), [filtered.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const startIndex = (currentPage - 1) * perPage;
+  const endIndex = Math.min(startIndex + perPage, filtered.length);
+  const pagedList = filtered.slice(startIndex, endIndex);
+
+  const setPage = (p) => setCurrentPage(Math.max(1, Math.min(totalPages, p)));
+
+  const handleOpen = async (notif) => {
+    if (!notif) return;
+    setItems((prev) => prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)));
+    await markNotificationRead(notif.id);
+    window.location.assign(notif.link || "/");
   };
 
   const markAllRead = async () => {
@@ -202,12 +276,16 @@ export default function Notifications() {
 
       <div className="main-layout">
         {!isMobile && <Sidebar activePage="Notifications" />}
+
         <main className="dashboard-main scrollable-content">
           <div className="section">
             <div className="notif-header-top">
               <h2>Notifications</h2>
+
               <div className="notif-controls">
-                <label className="notif-filter-label" htmlFor="notif-filter">Filter</label>
+                <label className="notif-filter-label" htmlFor="notif-filter">
+                  Filter
+                </label>
                 <div className="select-wrap">
                   <select
                     id="notif-filter"
@@ -223,65 +301,172 @@ export default function Notifications() {
                     <option value="notes">Session Notes</option>
                   </select>
                 </div>
+
                 <button className="mark-all" onClick={markAllRead} title="Mark all as read">
                   Mark all read
                 </button>
               </div>
             </div>
 
-            {loading ? (
-              <ul className="notification-list">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <li key={`skel-${i}`} className="notification-card" aria-hidden="true" style={{ opacity: 0.6 }}>
-                    <div className="notif-top-row">
-                      <div className="notif-top-left">
-                        <span className="notif-chip">Loading…</span>
-                      </div>
-                      <span className="timestamp">—</span>
-                    </div>
-                    <strong className="notif-title">Loading…</strong>
-                    <p className="notif-message">Please wait</p>
-                  </li>
-                ))}
-              </ul>
-            ) : filtered.length === 0 ? (
-              <div className="empty-state" role="status" aria-live="polite">
-                <div className="empty-emoji" aria-hidden="true">🎉</div>
-                <h3 className="empty-title">
-                  {filter === "unread" ? "You're all caught up!" : "No notifications found"}
-                </h3>
-                <p className="empty-sub">
-                  {filter === "unread"
-                    ? "You don’t have any unread notifications right now."
-                    : "Try switching filters or check back later."}
-                </p>
-              </div>
-            ) : (
-              <ul className="notification-list">
-                {filtered.map((notif, i) => {
-                  const meta = TYPE_META[notif.type] || {};
-                  const styleVars = { "--chip-bg": meta.bg || "#eef2f7", "--chip-fg": meta.fg || "#334155" };
-                  return (
-                    <li
-                      key={notif.id || `${notif.title}-${i}`}
-                      className={`notification-card ${notif.read ? "" : "unread"}`}
-                      onClick={() => handleOpen(i)}
-                      style={styleVars}
-                    >
-                      <div className="notif-top-row">
-                        <div className="notif-top-left">
-                          {!notif.read && <span className="notif-chip unread">Unread</span>}
-                          <span className="notif-chip">{meta.label || "Update"}</span>
+            {/* List area (MyFeedback-style loading/empty/content behavior) */}
+            <div
+              className={`notif-list-wrap ${!loading && pagedList.length === 0 ? "empty" : ""}`}
+              aria-busy={loading}
+              key={filter}
+            >
+              {loading ? (
+                <NotifSkeletonList count={perPage} />
+              ) : pagedList.length === 0 ? (
+                <div className="empty-state" role="status" aria-live="polite">
+                  <div className="empty-emoji" aria-hidden="true">🎉</div>
+                  <h3 className="empty-title">
+                    {filter === "unread" ? "You're all caught up!" : "No notifications found"}
+                  </h3>
+                  <p className="empty-sub">
+                    {filter === "unread"
+                      ? "You don’t have any unread notifications right now."
+                      : "Try switching filters or check back later."}
+                  </p>
+                </div>
+              ) : (
+                <ul className="notification-list">
+                  {pagedList.map((notif) => {
+                    const meta = TYPE_META[notif.type] || {};
+                    const styleVars = {
+                      "--chip-bg": meta.bg || "#eef2f7",
+                      "--chip-fg": meta.fg || "#334155",
+                    };
+                    return (
+                      <li
+                        key={notif.id}
+                        className={`notification-card ${notif.read ? "" : "unread"}`}
+                        onClick={() => handleOpen(notif)}
+                        style={styleVars}
+                      >
+                        <div className="notif-top-row">
+                          <div className="notif-top-left">
+                            {!notif.read && <span className="notif-chip unread">Unread</span>}
+                            <span className="notif-chip">{meta.label || "Update"}</span>
+                          </div>
+                          <span className="timestamp">{timeAgo(notif.createdAt)}</span>
                         </div>
-                        <span className="timestamp">{timeAgo(notif.createdAt)}</span>
-                      </div>
 
-                      <strong className="notif-title">{notif.title}</strong>
-                      <p className="notif-message">{notif.message}</p>
-                    </li>
-                  );
-                })}
-              </ul>
+                        <strong className="notif-title">{notif.title}</strong>
+                        <p className="notif-message">{notif.message}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* Range + page meta (matches MyFeedback look/wording) */}
+            {!loading && filtered.length > 0 && (
+              <div className="schedule-meta">
+                <span className="schedule-meta__range">
+                  Showing {filtered.length ? startIndex + 1 : 0}-{endIndex} of {filtered.length} notifications
+                </span>
+                {totalPages > 1 && (
+                  <span className="schedule-meta__page">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Pagination controls (same layout/UX as MyFeedback) */}
+            {!loading && totalPages > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  marginTop: "0.75rem",
+                  paddingBottom: "2rem",
+                }}
+              >
+                <button
+                  onClick={() => setPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "0.5rem 0.75rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    background: currentPage === 1 ? "#f9fafb" : "white",
+                    color: currentPage === 1 ? "#9ca3af" : "#374151",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                    transition: "all 0.2s ease",
+                  }}
+                  aria-label="Previous page"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                  Previous
+                </button>
+
+                <div style={{ display: "flex", gap: "0.25rem" }}>
+                  {getPaginationItems(currentPage, totalPages).map((item, idx) =>
+                    item === "..." ? (
+                      <span key={`dots-${idx}`} style={{ padding: "0.5rem", color: "#9ca3af" }}>
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={`p-${item}`}
+                        onClick={() => setPage(item)}
+                        aria-current={item === currentPage ? "page" : undefined}
+                        style={{
+                          padding: "0.5rem 0.75rem",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "6px",
+                          background: item === currentPage ? "#3b82f6" : "white",
+                          color: item === currentPage ? "white" : "#374151",
+                          cursor: "pointer",
+                          fontSize: "0.875rem",
+                          fontWeight: "500",
+                          minWidth: "40px",
+                          transition: "all 0.2s ease",
+                        }}
+                        title={`Go to page ${item}`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "0.5rem 0.75rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    background: currentPage === totalPages ? "#f9fafb" : "white",
+                    color: currentPage === totalPages ? "#9ca3af" : "#374151",
+                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                    transition: "all 0.2s ease",
+                  }}
+                  aria-label="Next page"
+                >
+                  Next
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+              </div>
             )}
           </div>
         </main>

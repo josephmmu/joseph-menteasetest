@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { useSystemSettings } from "../../context/SystemSettingsContext";
 import "./AdminAddCourseInstanceModal.css";
 
@@ -21,7 +22,7 @@ function AdminAddCourseInstanceModal({
   };
 
   const ALLOWED_PROGRAM_TOKENS = [
-    "IT", "BA", "MKT", "OM", "HRM", "MGT", "GE", "SS", "ENG", "HUM", "MATH", "PE", "NSTP", "ENV",
+    "IT","BA","MKT","OM","HRM","MGT","GE","SS","ENG","HUM","MATH","PE","NSTP","ENV",
   ];
   const COURSE_CODE_REGEX = new RegExp(
     `^MO-(?:${ALLOWED_PROGRAM_TOKENS.join("|")})\\d{3}[A-Z0-9]*$`
@@ -29,9 +30,9 @@ function AdminAddCourseInstanceModal({
 
   const DAY_OPTIONS = ["MWF", "TTHS"];
   const TIME_PRESETS = {
-    A: ["7:00-8:15", "8:15-9:30", "9:30-10:45"],       // AM
-    H: ["1:15-2:30", "2:30-3:45", "3:45-5:00"],        // PM
-    S: ["6:15-7:30", "7:30-8:45", "8:45-10:00"],       // PM
+    A: ["7:00-8:15", "8:15-9:30", "9:30-10:45"], // AM
+    H: ["1:15-2:30", "2:30-3:45", "3:45-5:00"], // PM
+    S: ["6:15-7:30", "7:30-8:45", "8:45-10:00"], // PM
   };
 
   const [formData, setFormData] = React.useState({
@@ -86,6 +87,14 @@ function AdminAddCourseInstanceModal({
       return `${pad2(h)}:${pad2(m)}`;
     };
     return [to24(s), to24(e)];
+  };
+
+  // Availability: map meeting days → allowedDays used by calendar
+  const deriveAllowedDays = (daysRaw = "") => {
+    const s = String(daysRaw || "").toUpperCase().replace(/\s+/g, "");
+    if (s.includes("MWF")) return ["Wed", "Fri"];
+    if (s.includes("TTHS") || s.includes("TTH")) return ["Thu", "Sat"];
+    return [];
   };
 
   /* -------------------- SECTION BUILDER -------------------- */
@@ -174,7 +183,8 @@ function AdminAddCourseInstanceModal({
     if (fromSubject) return fromSubject;
     if (subjectProgramFilter) return subjectProgramFilter.toUpperCase();
     if (selectedProgram) return selectedProgram.toUpperCase();
-    if (selectedMentor?.program) return String(selectedMentor.program).toUpperCase();
+    if (selectedMentor?.program)
+      return String(selectedMentor.program).toUpperCase();
     const fromNewCode = detectProgramFromString(customCourseCode || "");
     if (fromNewCode) return fromNewCode;
     return "";
@@ -294,10 +304,7 @@ function AdminAddCourseInstanceModal({
 
   /* -------------------- VALIDATORS -------------------- */
   const normalizeCourseCode = (v = "") =>
-    String(v)
-      .toUpperCase()
-      .replace(/\s+/g, "")
-      .replace(/^MO-?/, "MO-");
+    String(v).toUpperCase().replace(/\s+/g, "").replace(/^MO-?/, "MO-");
 
   const customCodeNormalized = React.useMemo(
     () => normalizeCourseCode(formData.customCourseCode || ""),
@@ -306,7 +313,8 @@ function AdminAddCourseInstanceModal({
 
   const isCourseCodeValid =
     !showAddNewSubject ||
-    (customCodeNormalized.length > 0 && COURSE_CODE_REGEX.test(customCodeNormalized));
+    (customCodeNormalized.length > 0 &&
+      COURSE_CODE_REGEX.test(customCodeNormalized));
 
   const codeProgramFromCode = React.useMemo(
     () => detectProgramFromString(customCodeNormalized),
@@ -445,6 +453,11 @@ function AdminAddCourseInstanceModal({
       )
         return;
 
+    } else {
+      if (!selectedSubject) return;
+    }
+
+    if (showAddNewSubject) {
       actualSubject = `${customCodeNormalized} ${formData.customCourseName.trim()}`;
       newSubjectData = {
         program: formData.customSubjectProgram,
@@ -453,7 +466,6 @@ function AdminAddCourseInstanceModal({
         fullName: actualSubject,
       };
     } else {
-      if (!selectedSubject) return;
       actualSubject = selectedSubject || formData.subject;
     }
 
@@ -480,7 +492,7 @@ function AdminAddCourseInstanceModal({
         )
       )
         return;
-      start24 = formData.customStartTime;  // HH:mm from <input type="time">
+      start24 = formData.customStartTime; // HH:mm
       end24 = formData.customEndTime;
     }
 
@@ -498,10 +510,7 @@ function AdminAddCourseInstanceModal({
 
     // Split subject into code/name
     const { code: courseCode, name: courseName } = showAddNewSubject
-      ? {
-          code: customCodeNormalized,
-          name: formData.customCourseName.trim(),
-        }
+      ? { code: customCodeNormalized, name: formData.customCourseName.trim() }
       : parseSubject(actualSubject);
 
     const yearLevel =
@@ -510,6 +519,20 @@ function AdminAddCourseInstanceModal({
       1;
 
     const mentorId = selectedMentor?._id || "";
+
+    // 🔐 Availability payload derived from schedule (no grace period policy)
+    const nowIso = new Date().toISOString();
+    const availability = {
+      mentoringBlock: { start: start24, end: end24 },
+      allowedDays: deriveAllowedDays(formData.meetingDays),
+      openDates: [],
+      closedDates: [],
+      _meta: {
+        openDates: {},
+        closedDates: {}, // map YYYY-MM-DD -> { closedAt }
+        lastEditedAt: nowIso,
+      },
+    };
 
     onSave({
       termId: academicTerm?._id || academicTerm?.id || null,
@@ -541,6 +564,9 @@ function AdminAddCourseInstanceModal({
         startTime: start24,
         endTime: end24,
       },
+
+      // ✅ explicit availability without grace-period policy
+      availability,
     });
 
     // reset
@@ -703,20 +729,31 @@ function AdminAddCourseInstanceModal({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     // NOTE: clicking the overlay will NOT close the modal anymore
     <div className="aaci overlay" aria-modal="true" role="dialog">
       <div className="aaci modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="aaci header">
           <div className="aaci icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 5v14M5 12h14" />
             </svg>
           </div>
           <div>
             <h3 className="aaci title">Add Course</h3>
-            <p className="aaci subtitle">Create a new course for {previewTermLabel}</p>
+            <p className="aaci subtitle">
+              Create a new course for {previewTermLabel}
+            </p>
           </div>
         </div>
 
@@ -737,7 +774,14 @@ function AdminAddCourseInstanceModal({
                   gap: "0.5rem",
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#3b82f6"
+                  strokeWidth="2"
+                >
                   <circle cx="12" cy="12" r="10" />
                   <path d="M12 6v6l4 2" />
                 </svg>
@@ -751,13 +795,18 @@ function AdminAddCourseInstanceModal({
               <div className="aaci banner-warning">
                 <div className="bw-title">No Active Academic Term</div>
                 <ul className="bw-list">
-                  <li>Please set an active academic term in System Settings before adding courses.</li>
+                  <li>
+                    Please set an active academic term in System Settings before
+                    adding courses.
+                  </li>
                 </ul>
               </div>
             )}
             {!canSubmit && (
               <div className="aaci banner-warning">
-                <div className="bw-title">Complete the following before adding:</div>
+                <div className="bw-title">
+                  Complete the following before adding:
+                </div>
                 <ul className="bw-list">
                   {!(showAddNewSubject ? hasNewSubjectFields : hasSubjectSelected) && (
                     <li>
@@ -766,17 +815,37 @@ function AdminAddCourseInstanceModal({
                         : "Select a subject from the list"}
                     </li>
                   )}
-                  {showAddNewSubject && formData.customCourseCode && !isCourseCodeValid && (
-                    <li>Course Code must be like <strong>MO-IT103</strong> or <strong>MO-ENG040</strong> (only allowed prefixes: {ALLOWED_PROGRAM_TOKENS.join(", ")})</li>
-                  )}
+                  {showAddNewSubject &&
+                    formData.customCourseCode &&
+                    !isCourseCodeValid && (
+                      <li>
+                        Course Code must be like <strong>MO-IT103</strong> or{" "}
+                        <strong>MO-ENG040</strong> (only allowed prefixes:{" "}
+                        {ALLOWED_PROGRAM_TOKENS.join(", ")})
+                      </li>
+                    )}
                   {showAddNewSubject && programMismatch && (
-                    <li>Program mismatch: selected <strong>{formData.customSubjectProgram}</strong> but code indicates <strong>{codeProgramFromCode}</strong></li>
+                    <li>
+                      Program mismatch: selected{" "}
+                      <strong>{formData.customSubjectProgram}</strong> but code
+                      indicates <strong>{codeProgramFromCode}</strong>
+                    </li>
                   )}
-                  {!isValidSection && <li>Provide a valid section code (format: [A/H/S][1–4][3 digits], e.g., H1101)</li>}
+                  {!isValidSection && (
+                    <li>
+                      Provide a valid section code (format: [A/H/S][1–4][3
+                      digits], e.g., H1101)
+                    </li>
+                  )}
                   {!hasMentor && <li>Select a mentor</li>}
-                  {!formData.meetingDays && <li>Choose meeting days (MWF or TTHS)</li>}
+                  {!formData.meetingDays && (
+                    <li>Choose meeting days (MWF or TTHS)</li>
+                  )}
                   {!usingPreset && !usingCustom && (
-                    <li>Choose a meeting time (presets depend on Time Slot) or enter a custom time within the slot window</li>
+                    <li>
+                      Choose a meeting time (presets depend on Time Slot) or
+                      enter a custom time within the slot window
+                    </li>
                   )}
                   {useCustomTime &&
                     formData.customStartTime &&
@@ -815,14 +884,28 @@ function AdminAddCourseInstanceModal({
                           setTimeout(() => setIsSubjectInputFocused(false), 300);
                         }}
                       />
-                      <svg className="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        className="input-icon"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <circle cx="11" cy="11" r="8" />
                         <path d="m21 21-4.35-4.35" />
                       </svg>
 
                       {isSubjectInputFocused && (
-                        <div className="dropdown" onMouseDown={(e) => e.preventDefault()}>
-                          <div className="dropdown-filter" onMouseDown={(e) => e.preventDefault()}>
+                        <div
+                          className="dropdown"
+                          onMouseDown={(e) => e.preventDefault()}
+                        >
+                          <div
+                            className="dropdown-filter"
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
                             {[
                               { label: "All", value: "" },
                               { label: "IT", value: "IT" },
@@ -835,8 +918,12 @@ function AdminAddCourseInstanceModal({
                                   key={opt.value || "ALL"}
                                   type="button"
                                   onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => setSubjectProgramFilter(opt.value)}
-                                  className={`chip ${active ? "chip-active" : ""}`}
+                                  onClick={() =>
+                                    setSubjectProgramFilter(opt.value)
+                                  }
+                                  className={`chip ${
+                                    active ? "chip-active" : ""
+                                  }`}
                                 >
                                   {opt.label}
                                 </button>
@@ -845,7 +932,9 @@ function AdminAddCourseInstanceModal({
                           </div>
 
                           {filteredSubjects.length === 0 ? (
-                            <div className="dropdown-empty">No subjects found. Try a different filter.</div>
+                            <div className="dropdown-empty">
+                              No subjects found. Try a different filter.
+                            </div>
                           ) : (
                             filteredSubjects.map((subject, index) => {
                               const pg = detectProgramFromString(subject);
@@ -860,7 +949,11 @@ function AdminAddCourseInstanceModal({
                                 >
                                   <span>{subject}</span>
                                   {pg ? (
-                                    <span className={`pg ${getProgramBadgeStyle(pg)}`}>
+                                    <span
+                                      className={`pg ${getProgramBadgeStyle(
+                                        pg
+                                      )}`}
+                                    >
                                       {pg}
                                     </span>
                                   ) : null}
@@ -878,7 +971,14 @@ function AdminAddCourseInstanceModal({
                       onClick={() => setShowAddNewSubject(true)}
                       className="subject-add-btn"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <path d="M12 5v14M5 12h14" />
                       </svg>
                       Add New
@@ -891,7 +991,13 @@ function AdminAddCourseInstanceModal({
                         Selected: {selectedSubject}{" "}
                         {(() => {
                           const pg = detectProgramFromString(selectedSubject);
-                          return pg ? <span className={`pg ${getProgramBadgeStyle(pg)}`}>{pg}</span> : null;
+                          return pg ? (
+                            <span
+                              className={`pg ${getProgramBadgeStyle(pg)}`}
+                            >
+                              {pg}
+                            </span>
+                          ) : null;
                         })()}
                       </span>
                       <button
@@ -903,7 +1009,14 @@ function AdminAddCourseInstanceModal({
                           setFormData((prev) => ({ ...prev, subject: "" }));
                         }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
                           <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
                       </button>
@@ -926,7 +1039,14 @@ function AdminAddCourseInstanceModal({
                       }}
                       className="btn btn-outline btn-sm"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <path d="M19 12H5M12 19l-7-7 7-7" />
                       </svg>
                       Back to subject list
@@ -970,29 +1090,53 @@ function AdminAddCourseInstanceModal({
                         onBlur={(e) =>
                           setFormData((prev) => ({
                             ...prev,
-                            customCourseCode: normalizeCourseCode(e.target.value),
+                            customCourseCode: normalizeCourseCode(
+                              e.target.value
+                            ),
                           }))
                         }
                         placeholder="e.g., MO-IT103, MO-ENG040, MO-SS033"
                         className="input"
                         required
                         style={
-                          showAddNewSubject && formData.customCourseCode && !isCourseCodeValid
-                            ? { borderColor: "#ef4444", boxShadow: "0 0 0 3px rgba(239,68,68,.15)" }
+                          showAddNewSubject &&
+                          formData.customCourseCode &&
+                          !isCourseCodeValid
+                            ? {
+                                borderColor: "#ef4444",
+                                boxShadow:
+                                  "0 0 0 3px rgba(239,68,68,.15)",
+                              }
                             : undefined
                         }
                       />
                       <small className="help">
-                        Must match <strong>MO-XXX999</strong> (+optional suffix). Allowed XXX: {ALLOWED_PROGRAM_TOKENS.join(", ")}
+                        Must match <strong>MO-XXX999</strong> (+optional
+                        suffix). Allowed XXX:{" "}
+                        {ALLOWED_PROGRAM_TOKENS.join(", ")}
                       </small>
-                      {showAddNewSubject && formData.customCourseCode && !isCourseCodeValid && (
-                        <small className="help" style={{ color: "#b91c1c" }}>
-                          Invalid code. Examples: <strong>MO-IT103</strong>, <strong>MO-ENG040</strong>, <strong>MO-SS033A</strong>
-                        </small>
-                      )}
+                      {showAddNewSubject &&
+                        formData.customCourseCode &&
+                        !isCourseCodeValid && (
+                          <small
+                            className="help"
+                            style={{ color: "#b91c1c" }}
+                          >
+                            Invalid code. Examples:{" "}
+                            <strong>MO-IT103</strong>,{" "}
+                            <strong>MO-ENG040</strong>,{" "}
+                            <strong>MO-SS033A</strong>
+                          </small>
+                        )}
                       {showAddNewSubject && programMismatch && (
-                        <small className="help" style={{ color: "#b91c1c" }}>
-                          Program mismatch: selected <strong>{formData.customSubjectProgram}</strong> but code indicates <strong>{codeProgramFromCode}</strong>.
+                        <small
+                          className="help"
+                          style={{ color: "#b91c1c" }}
+                        >
+                          Program mismatch: selected{" "}
+                          <strong>{formData.customSubjectProgram}</strong> but
+                          code indicates{" "}
+                          <strong>{codeProgramFromCode}</strong>.
                         </small>
                       )}
                     </div>
@@ -1035,7 +1179,10 @@ function AdminAddCourseInstanceModal({
                   {formData.section || "___"}
                 </div>
                 {isValidSection && formData.section ? (
-                  <div className="section-valid-badge" title="Valid section format">
+                  <div
+                    className="section-valid-badge"
+                    title="Valid section format"
+                  >
                     ✓
                   </div>
                 ) : null}
@@ -1067,7 +1214,8 @@ function AdminAddCourseInstanceModal({
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        courseYear: e.target.value.replace(/[^1-4]/g, "") || "1",
+                        courseYear:
+                          e.target.value.replace(/[^1-4]/g, "") || "1",
                       }))
                     }
                     className="select"
@@ -1086,8 +1234,13 @@ function AdminAddCourseInstanceModal({
                     type="text"
                     value={formData.sectionNumber}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, "").slice(0, 3);
-                      setFormData((prev) => ({ ...prev, sectionNumber: value }));
+                      const value = e.target.value
+                        .replace(/\D/g, "")
+                        .slice(0, 3);
+                      setFormData((prev) => ({
+                        ...prev,
+                        sectionNumber: value,
+                      }));
                     }}
                     placeholder="000"
                     maxLength="3"
@@ -1097,7 +1250,12 @@ function AdminAddCourseInstanceModal({
               </div>
 
               <div className="helper">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                 </svg>
                 Format: [Time Slot][Course Year][3 digits] • Example: H3102
@@ -1112,7 +1270,12 @@ function AdminAddCourseInstanceModal({
                 <label className="sublabel">Days</label>
                 <select
                   value={formData.meetingDays}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, meetingDays: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      meetingDays: e.target.value,
+                    }))
+                  }
                   className="select"
                 >
                   <option value="">Select days</option>
@@ -1169,7 +1332,12 @@ function AdminAddCourseInstanceModal({
                       <input
                         type="time"
                         value={formData.customStartTime}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, customStartTime: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            customStartTime: e.target.value,
+                          }))
+                        }
                         className="input"
                       />
                     </div>
@@ -1178,7 +1346,12 @@ function AdminAddCourseInstanceModal({
                       <input
                         type="time"
                         value={formData.customEndTime}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, customEndTime: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            customEndTime: e.target.value,
+                          }))
+                        }
                         className="input"
                       />
                     </div>
@@ -1188,9 +1361,15 @@ function AdminAddCourseInstanceModal({
                 <div className="tiny-helper">
                   Presets match the Time Slot:
                   <br />
-                  Morning (A): <strong>7:00–10:45 AM</strong> • Afternoon (H): <strong>1:15–5:00 PM</strong> • Evening (S): <strong>6:15–10:00 PM</strong>
+                  Morning (A): <strong>7:00–10:45 AM</strong> • Afternoon (H):{" "}
+                  <strong>1:15–5:00 PM</strong> • Evening (S):{" "}
+                  <strong>6:15–10:00 PM</strong>
                   <br />
-                  Example: <strong>{formatPresetRange12h("7:00-8:15", formData.sectionTimeSlot)}</strong> / {formData.meetingDays || "MWF"}
+                  Example:{" "}
+                  <strong>
+                    {formatPresetRange12h("7:00-8:15", formData.sectionTimeSlot)}
+                  </strong>{" "}
+                  / {formData.meetingDays || "MWF"}
                 </div>
               </div>
             </div>
@@ -1220,7 +1399,15 @@ function AdminAddCourseInstanceModal({
                   placeholder="Search mentors by name, email, or program..."
                   className="input with-icon"
                 />
-                <svg className="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="input-icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.35-4.35" />
                 </svg>
@@ -1231,7 +1418,13 @@ function AdminAddCourseInstanceModal({
                   <span className="selected-pill-text">
                     Selected: {selectedMentor.name}{" "}
                     {selectedMentor.program ? (
-                      <span className={`pg ${getProgramBadgeStyle(selectedMentor.program)}`}>{selectedMentor.program}</span>
+                      <span
+                        className={`pg ${getProgramBadgeStyle(
+                          selectedMentor.program
+                        )}`}
+                      >
+                        {selectedMentor.program}
+                      </span>
                     ) : null}
                   </span>
                   <button
@@ -1243,7 +1436,14 @@ function AdminAddCourseInstanceModal({
                       setFormData((prev) => ({ ...prev, mentor: "" }));
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                   </button>
@@ -1253,12 +1453,22 @@ function AdminAddCourseInstanceModal({
               {(mentorQuery || !selectedMentor) && filteredMentors.length > 0 && (
                 <div className="mentor-list-container">
                   {filteredMentors.map((mentor, index) => (
-                    <div key={index} className="mentor-item" onClick={() => handleMentorSelect(mentor)}>
+                    <div
+                      key={index}
+                      className="mentor-item"
+                      onClick={() => handleMentorSelect(mentor)}
+                    >
                       <div className="mentor-meta">
                         <div className="mentor-name">{mentor.name}</div>
                         <div className="mentor-email">{mentor.email}</div>
                       </div>
-                      <span className={`pg ${getProgramBadgeStyle(mentor.program)}`}>{mentor.program}</span>
+                      <span
+                        className={`pg ${getProgramBadgeStyle(
+                          mentor.program
+                        )}`}
+                      >
+                        {mentor.program}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1275,12 +1485,19 @@ function AdminAddCourseInstanceModal({
                       {previewCode} - {previewName}
                     </h3>
                     {previewProgram && (
-                      <span className={`pg ${getProgramBadgeStyle(previewProgram)}`}>{previewProgram}</span>
+                      <span
+                        className={`pg ${getProgramBadgeStyle(
+                          previewProgram
+                        )}`}
+                      >
+                        {previewProgram}
+                      </span>
                     )}
                   </div>
 
                   <div className="preview-sub">
-                    Section {formData.section || "---"} • {selectedMentor?.name || "---"}
+                    Section {formData.section || "---"} •{" "}
+                    {selectedMentor?.name || "---"}
                   </div>
 
                   <div className="preview-term">{previewTermLabel}</div>
@@ -1288,7 +1505,8 @@ function AdminAddCourseInstanceModal({
                   <div className="preview-sub">
                     {formData.meetingDays || previewTimeStr ? (
                       <>
-                        {formData.meetingDays || "---"} • {previewTimeStr || "---"}
+                        {formData.meetingDays || "---"} •{" "}
+                        {previewTimeStr || "---"}
                       </>
                     ) : (
                       "Schedule ---"
@@ -1302,16 +1520,26 @@ function AdminAddCourseInstanceModal({
 
         {/* Footer */}
         <div className="aaci footer">
-          <button type="button" onClick={handleCancel} className="subject-add-btn subject-add-btn--white">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="subject-add-btn subject-add-btn--white"
+          >
             Cancel
           </button>
 
-          <button type="submit" form="add-course-form" className="subject-add-btn" disabled={!canSubmit || !academicTerm}>
+          <button
+            type="submit"
+            form="add-course-form"
+            className="subject-add-btn"
+            disabled={!canSubmit || !academicTerm}
+          >
             Add Course
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -153,3 +153,106 @@
   .select-wrap, .notif-filter { width: 100%; }
   .mark-all { width: auto; align-self: flex-end; }
 }
+
+/* Skeleton base */
+.skeleton {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background: #e9eef5;
+  border-radius: 6px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+  animation: notif-shimmer 1.2s infinite;
+}
+@keyframes notif-shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* Card container while loading */
+.notification-card.skeleton-card {
+  opacity: 1;
+  pointer-events: none;
+}
+
+/* Sizes for skeleton blocks to match real layout */
+.skeleton-chip {
+  height: 22px;
+  width: 120px;
+  border-radius: 999px;
+}
+
+.skeleton-time {
+  height: 12px;
+  width: 80px;
+  margin-left: auto;
+  border-radius: 999px;
+}
+
+.skeleton-title {
+  height: 16px;
+  width: 60%;
+  margin-top: 8px;
+  margin-bottom: 10px;
+}
+
+.skeleton-text {
+  height: 12px;
+  width: 100%;
+  margin: 6px 0;
+}
+
+.skeleton-text.short {
+  width: 70%;
+}
+
+/* Optional: spacing tweaks so skeletons align with your card grid */
+.notification-list .skeleton-card {
+  padding: 16px;
+}
+
+/* === Compact, gray-ish details === */
+:root{
+  --notif-title-size: .95rem;
+  --notif-bullet-size: .86rem;
+  --notif-bullet-size-sm: .84rem;
+  --notif-label-color: #334155;   /* slate-700 */
+  --notif-desc-color:  #64748b;   /* slate-500 */
+  --notif-muted-color: #94a3b8;   /* slate-400 */
+}
+
+/* slightly smaller title; unread stays bold via existing rule */
+.notif-title{
+  font-size: var(--notif-title-size);
+  color: #0f172a; /* slate-900 for better contrast vs gray details */
+}
+
+/* bullets: smaller + gray body text */
+.notif-bullets{ margin: 6px 0 0; padding-left: 1rem; }
+.notif-bullet{
+  font-size: var(--notif-bullet-size);
+  color: var(--notif-desc-color);
+  margin: 2px 0;
+  line-height: 1.35;
+}
+
+/* bold, darker labels; keep the colon rhythm */
+.bullet-label{ color: var(--notif-label-color); font-weight: 700; }
+.bullet-value{ color: var(--notif-desc-color); font-weight: 500; }
+.bullet-quiet{ color: var(--notif-muted-color); font-weight: 400; }
+
+/* make the WHEN line pop a bit more without being huge */
+.bullet-when .bullet-label strong{ color: var(--notif-label-color); }
+.bullet-when .bullet-value strong{ color:#111827; font-weight: 800; } /* near-black for datetime */
+.bullet-when .bullet-quiet{ color: var(--notif-muted-color); }
+
+/* mobile scale */
+@media (max-width:768px){
+  .notif-title{ font-size: .93rem; }
+  .notif-bullet{ font-size: var(--notif-bullet-size-sm); }
+}

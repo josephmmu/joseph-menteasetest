@@ -1,4 +1,4 @@
-// components/RescheduleSessionModal.jsx
+// src/components/RescheduleSessionModal.jsx — booking-parity version (cleaned + notifications)
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import "./RescheduleSessionModal.css";
 
@@ -55,69 +55,91 @@ const fmt12 = (t) => {
   return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
 };
 
-function loadAvailabilityStore() {
+/* === NEW: tiny helpers for notif labels / IDs / emails === */
+const getTZShort = (date) => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
+    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" }).formatToParts(date);
+    return parts.find((p) => p.type === "timeZoneName")?.value || "";
+  } catch { return ""; }
+};
+const formatDateTimeForNotif = (isoStart, isoEnd) => {
+  const start = isoStart ? new Date(isoStart) : null;
+  const end = isoEnd ? new Date(isoEnd) : null;
+  if (!start || Number.isNaN(start.getTime())) {
+    return { dateStr: "", startStr: "", endStr: "", timeRange: "", durationMin: 0, tzShort: "", label: "" };
   }
+  const fmtDate = (d) =>
+    d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const fmtTime = (d) =>
+    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const dateStr = fmtDate(start);
+  const startStr = fmtTime(start);
+  const endValid = end && !Number.isNaN(end.getTime());
+  const endStr = endValid ? fmtTime(end) : "";
+  const tzShort = getTZShort(start);
+  const timeRange = endStr ? `${startStr}–${endStr}` : startStr;
+  const durationMin = endValid ? Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000)) : 0;
+  const sameDay = endValid ? start.toDateString() === end.toDateString() : true;
+  const label = sameDay
+    ? `${dateStr}, ${timeRange} ${tzShort}${durationMin ? ` (${durationMin} mins)` : ""}`
+    : `${dateStr} ${startStr} ${tzShort} – ${fmtDate(end)} ${fmtTime(end)} ${getTZShort(end)}${durationMin ? ` (${durationMin} mins)` : ""}`;
+  return { dateStr, startStr, endStr, timeRange, durationMin, tzShort, label };
+};
+const toIdString = (v) => {
+  if (!v) return "";
+  if (typeof v === "string") return v.trim();
+  if (typeof v === "object") {
+    return (
+      v._id ||
+      v.id ||
+      v.$id ||
+      v.$oid ||
+      (v.toString ? v.toString() : "") ||
+      ""
+    ).toString();
+  }
+  return String(v);
+};
+
+const isValidEmail = (s = "") => {
+  if (!s) return false;
+  const value = String(s).trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+};
+
+function getCurrentEmail() {
+  try {
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      const u = JSON.parse(raw);
+      const e =
+        u?.email || u?.user?.email || u?.account?.email || u?.profile?.email;
+      if (e) return String(e).toLowerCase();
+    }
+  } catch {}
+  try {
+    const token = localStorage.getItem("token");
+    if (token) {
+      const payload = JSON.parse(atob(token.split(".")[1] || ""));
+      const e =
+        payload?.email ||
+        payload?.login?.email ||
+        payload?.user?.email ||
+        payload?.account?.email;
+      if (e) return String(e).toLowerCase();
+    }
+  } catch {}
+  return "";
 }
 
-/* === robust helpers === */
-const toLocalYMDHM = (iso) => {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return { date: "", time: "" };
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const HH = String(d.getHours()).padStart(2, "0");
-  const MM = String(d.getMinutes()).padStart(2, "0");
-  return { date: `${yyyy}-${mm}-${dd}`, time: `${HH}:${MM}` };
-};
-
-/** Normalize any student/participant array into display names */
-const extractStudentNames = (arr) => {
-  if (!Array.isArray(arr)) return [];
-  return arr
-    .map((s) => {
-      if (typeof s === "string") return s.trim();
-      if (s && typeof s === "object") {
-        const u = s.user && typeof s.user === "object" ? s.user : null;
-        const parts = [
-          s.name,
-          s.fullName,
-          [s.firstName, s.lastName].filter(Boolean).join(" ").trim(),
-          s.displayName,
-          s.username,
-          s.email,
-          s.rollNo,
-          u?.name,
-          u?.fullName,
-          [u?.firstName, u?.lastName].filter(Boolean).join(" ").trim(),
-          u?.displayName,
-          u?.username,
-          u?.email,
-        ];
-        const found = parts.find((p) => typeof p === "string" && p.trim());
-        if (found) return found.trim();
-      }
-      return "";
-    })
-    .filter(Boolean);
-};
-
-/** API helpers */
+/* === Notifications: shared helpers === */
 const authHeaders = () => {
   const token = localStorage.getItem("token");
   return token
-    ? {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      }
+    ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" }
     : { "Content-Type": "application/json", Accept: "application/json" };
 };
+
 const tryFetchJson = async (url, method = "GET", body) => {
   try {
     const res = await fetch(url, {
@@ -132,129 +154,286 @@ const tryFetchJson = async (url, method = "GET", body) => {
     return null;
   }
 };
-/** Accepts "MWF", "TTh", "Mon/Wed/Fri", etc -> ["Mon","Wed","Fri"] */
-const parseDaysOfWeek = (input) => {
-  if (!input) return null;
-  let s = String(input).toUpperCase().replace(/\s+|\/|,|-/g, "");
-  if (!s) return null;
-  const tokens = [];
-  while (s.length) {
-    if (s.startsWith("TH")) {
-      tokens.push("TH");
-      s = s.slice(2);
-    } else if (s.startsWith("SU")) {
-      tokens.push("SU");
-      s = s.slice(2);
-    } else if (s.startsWith("SA")) {
-      tokens.push("SA");
-      s = s.slice(2);
-    } else {
-      tokens.push(s[0]);
-      s = s.slice(1);
+
+async function resolveEmailsToIds(emails = []) {
+  const uniq = [...new Set((emails || []).map((e) => String(e || "").toLowerCase()))];
+  const out = new Map();
+  if (!uniq.length) return out;
+
+  const headers = authHeaders();
+
+  // helper to ingest any array-ish response
+  const ingest = (data) => {
+    const arr = Array.isArray(data)
+      ? data
+      : (Array.isArray(data?.data) && data.data) ||
+        (Array.isArray(data?.users) && data.users) ||
+        (Array.isArray(data?.students) && data.students) ||
+        (Array.isArray(data?.results) && data.results) ||
+        [];
+    for (const it of arr) {
+      const n = normalizeRosterItem(it);
+      if (n?.email && n?.id) out.set(n.email.toLowerCase(), toIdString(n.id));
+    }
+  };
+
+  // --- Bulk GET: emails joined + repeated params
+  const queryComma = encodeURIComponent(uniq.join(","));
+  const repeated = uniq.map((e) => `emails=${encodeURIComponent(e)}`).join("&");
+  const bulkGets = [
+    `${API}/api/users/by-emails?emails=${queryComma}`,
+    `${API}/api/students/by-emails?emails=${queryComma}`,
+    `${API}/api/users/by-emails?${repeated}`,
+    `${API}/api/students/by-emails?${repeated}`,
+  ];
+  for (const url of bulkGets) {
+    try {
+      const r = await fetch(url, { headers, credentials: "include" });
+      if (!r.ok) continue;
+      ingest(await r.json());
+      if (out.size === uniq.length) return out;
+    } catch {}
+  }
+
+  // --- Bulk POST candidates
+  const bulkPosts = [
+    { url: `${API}/api/users/resolve`, body: { emails: uniq } },
+    { url: `${API}/api/students/resolve`, body: { emails: uniq } },
+    { url: `${API}/api/users/lookup`, body: { emails: uniq } },
+    { url: `${API}/api/users/bulk`, body: { emails: uniq } },
+  ];
+  for (const bp of bulkPosts) {
+    try {
+      const r = await fetch(bp.url, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(bp.body),
+      });
+      if (!r.ok) continue;
+      ingest(await r.json());
+      if (out.size === uniq.length) return out;
+    } catch {}
+  }
+
+  // --- Singles fallback
+  const missing = uniq.filter((e) => !out.has(e));
+  for (const email of missing) {
+    const q = encodeURIComponent(email);
+    const singleGets = [
+      `${API}/api/users/by-email/${q}`,
+      `${API}/api/users/by-email?email=${q}`,
+      `${API}/api/users/find?email=${q}`,
+      `${API}/api/students/by-email/${q}`,
+      `${API}/api/students/find?email=${q}`,
+      `${API}/api/users?email=${q}`, // may return array
+    ];
+    for (const url of singleGets) {
+      try {
+        const r = await fetch(url, { headers, credentials: "include" });
+        if (!r.ok) continue;
+        const j = await r.json();
+        const candidate = Array.isArray(j) ? j[0] :
+                          Array.isArray(j?.users) ? j.users[0] :
+                          Array.isArray(j?.data) ? j.data[0] :
+                          j;
+        const n = normalizeRosterItem(candidate);
+        if (n?.id) { out.set(email, toIdString(n.id)); break; }
+      } catch {}
     }
   }
-  const map = {
-    M: "Mon",
-    T: "Tue",
-    W: "Wed",
-    TH: "Thu",
-    F: "Fri",
-    SA: "Sat",
-    SU: "Sun",
-  };
-  const out = tokens.map((t) => map[t]).filter(Boolean);
-  return out.length ? out : null;
-};
+
+  return out;
+}
+
+/** Unified sender (in-app + email) */
+async function sendUnifiedNotification(toUserId, payload) {
+  if (!toUserId) return false;
+  const opts = (body) => ({
+    method: "POST",
+    headers: authHeaders(),
+    credentials: "include",
+    body: JSON.stringify({ sendEmail: true, ...body }),
+  });
+  const attempts = [
+    { url: `${API}/api/notifications`, body: { toUserId, ...payload } },
+    { url: `${API}/api/notifications/send`, body: { to: toUserId, ...payload } },
+    { url: `${API}/api/users/${toUserId}/notifications`, body: payload },
+    { url: `${API}/api/users/${toUserId}/notify`, body: payload },
+  ];
+  for (const a of attempts) {
+    try { const res = await fetch(a.url, opts(a.body)); if (res.ok) return true; } catch {}
+  }
+  return false;
+}
+
+/** Self user id */
+async function getSelfUserId() {
+  // 1) Try localStorage "user"
+  try {
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      const u = JSON.parse(raw);
+      const id = toIdString(u?._id || u?.id || u?.user?._id || u?.user?.id);
+      if (id) return id;
+    }
+  } catch {}
+
+  // 2) Decode JWT quickly (no network)
+  try {
+    const token = localStorage.getItem("token");
+    if (token) {
+      const payload = JSON.parse(atob(token.split(".")[1] || ""));
+      const id = toIdString(
+        payload?._id || payload?.id || payload?.sub || payload?.userId
+      );
+      if (id) return id;
+    }
+  } catch {}
+
+  // 3) No hard fail — just return empty (you’ll still notify mentor/students)
+  return "";
+}
+
+function extractEmail(obj) {
+  return (
+    obj?.email ||
+    obj?.emailAddress ||
+    obj?.primaryEmail ||
+    obj?.schoolEmail ||
+    obj?.mmcEmail ||
+    obj?.login?.email ||
+    obj?.user?.email ||
+    obj?.account?.email ||
+    obj?.student?.email ||
+    obj?.profile?.email ||
+    obj?.student?.account?.email ||
+    (Array.isArray(obj?.emails) ? obj.emails.find((e) => e?.primary)?.value : null) ||
+    (Array.isArray(obj?.emails) ? obj.emails[0]?.value : null) ||
+    ""
+  );
+}
+
+function normalizeRosterItem(obj) {
+  const email = String(extractEmail(obj) || "").trim();
+  const id =
+    toIdString(
+      obj?._id || obj?.id || obj?.user?._id || obj?.user?.id || obj?.account?._id || obj?.account?.id || obj?.student?._id || obj?.student?.id
+    ) || null;
+  return { id, email: email ? email.toLowerCase() : "" };
+}
+
+/* === storage loader === */
+function loadAvailabilityStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** DB → UI helpers */
 const normalizeTime = (t) => {
   if (!t) return "";
   const [hh, mm] = String(t).split(":").map((x) => parseInt(x, 10));
   if (Number.isNaN(hh) || Number.isNaN(mm)) return "";
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 };
-const courseCodeFromSubject = (s = "") =>
-  (s || "").trim().split(/\s+/)[0] || "";
 
-/* Build ISO datetimes from selected date/time + duration */
-const buildStartEndISO = (dateYMD, timeHM, durationMins) => {
-  if (!dateYMD || !timeHM) return { startISO: "", endISO: "" };
-  const [Y, M, D] = dateYMD.split("-").map(Number);
-  const [h, m] = timeHM.split(":").map(Number);
-  const start = new Date(Y, (M || 1) - 1, D, h, m, 0, 0); // local time
-  const end = new Date(start.getTime() + (Number(durationMins) || 30) * 60000);
-  return { startISO: start.toISOString(), endISO: end.toISOString() };
-};
-
-/** Is selected start at least 24 hours from now? */
-const isStartAtLeast24hFromNow = (dateYMD, timeHM) => {
-  if (!dateYMD || !timeHM) return false;
-  const [Y, M, D] = dateYMD.split("-").map(Number);
-  const [h, m] = timeHM.split(":").map(Number);
-  const start = new Date(Y, (M || 1) - 1, D, h, m, 0, 0);
-  if (isNaN(start.getTime())) return false;
-  return start.getTime() - Date.now() >= MIN_LEAD_MS;
-};
-
-/* === Overlap helpers (own sessions) ===================== */
-const startOfDayEndOfDay = (isoDate) => {
-  const [Y, M, D] = isoDate.split("-").map(Number);
-  const start = new Date(Y, (M || 1) - 1, D, 0, 0, 0, 0);
-  const end = new Date(Y, (M || 1) - 1, D, 23, 59, 59, 999);
+/** Parse compact ranges like "13:15-14:30" */
+function parseCompactRange(rangeStr = "") {
+  const s = String(rangeStr || "").trim();
+  const m = s.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const aH = Number(m[1]), aM = Number(m[2]), bH = Number(m[3]), bM = Number(m[4]);
+  if ([aH, aM, bH, bM].some((x) => Number.isNaN(x))) return null;
+  const start = `${String(aH).padStart(2, "0")}:${String(aM).padStart(2, "0")}`;
+  const end   = `${String(bH).padStart(2, "0")}:${String(bM).padStart(2, "0")}`;
   return { start, end };
-};
+}
 
-const isCancelledSession = (s) =>
-  !!s?.cancelled ||
-  String(s?.status || "").toLowerCase().includes("cancel");
-
-const normalizeSessionRange = (s) => {
-  if (!s) return null;
-  const id = s._id || s.id || s.sessionId || s.meetingId || s.uuid || "";
-  let start, end;
-
-  if (s.startISO) {
-    start = new Date(s.startISO);
-    end = s.endISO
-      ? new Date(s.endISO)
-      : new Date(start.getTime() + (s.duration || 30) * 60000);
-  } else if (s.date) {
-    // e.g. "2025-03-07 - 10:00 – 10:30"
-    const raw = String(s.date);
-    const [datePart, timesPart] = raw.split(" - ");
-    if (datePart && timesPart) {
-      const pieces = timesPart
-        .split(/[–-]/)
-        .map((x) => x?.trim())
-        .filter(Boolean);
-      const st = pieces[0],
-        en = pieces[1];
-      if (st) {
-        start = new Date(`${datePart} ${st}`);
-        end = en
-          ? new Date(`${datePart} ${en}`)
-          : new Date(start.getTime() + (s.duration || 30) * 60000);
-      }
+/** Match the mentor policy fallback used in the calendar:
+ *   - MWF  -> Wed, Fri
+ *   - TTHS -> Thu, Sat
+ * (Anything else → no default mentoring days)
+ */
+const parseDaysStringToDow = (raw) => {
+  if (!raw || typeof raw !== "string") return [];
+  let s = raw.toUpperCase().replace(/\s+/g, "");
+  s = s.replace(/T{2,}HS/g, "THS").replace(/T{2,}H/g, "TH");
+  const out = [];
+  for (let i = 0; i < s.length; ) {
+    if (s.startsWith("TH", i)) { out.push(4); i += 2; continue; }
+    const ch = s[i];
+    let dow = null;
+    switch (ch) {
+      case "M": dow = 1; break;
+      case "T": dow = 2; break;
+      case "W": dow = 3; break;
+      case "R": dow = 4; break;
+      case "F": dow = 5; break;
+      case "S": dow = 6; break;
+      case "U": dow = 0; break;
+      default: dow = null;
     }
-  } else if (s.start && s.end && s.day) {
-    // fallback shape: explicit fields
-    start = new Date(`${s.day} ${s.start}`);
-    end = new Date(`${s.day} ${s.end}`);
+    if (dow !== null) out.push(dow);
+    i += 1;
   }
-
-  if (!(start instanceof Date) || isNaN(start)) return null;
-  if (!(end instanceof Date) || isNaN(end))
-    end = new Date(start.getTime() + (s.duration || 30) * 60000);
-
-  return {
-    id,
-    start,
-    end,
-    subject: s.subject || "",
-    section: s.section || "",
-    cancelled: isCancelledSession(s),
-  };
+  return Array.from(new Set(out)).sort((a, b) => a - b);
 };
 
-const minsFromDate = (d) => d.getHours() * 60 + d.getMinutes();
+const allowedFromSchedule = (daysStr = "") => {
+  const dows = parseDaysStringToDow(daysStr);
+  const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+  if (same(dows, [1, 3, 5])) return ["Wed", "Fri"]; // MWF
+  if (same(dows, [4, 6]) || same(dows, [2, 4, 6])) return ["Thu", "Sat"]; // THS or TTHS
+  return [];
+};
+
+/* =========================
+  Staleness-safe helpers
+   ========================= */
+
+/** Is a date open given arrays (pure, no state dependency) */
+const isDateOpenGiven = (iso, days = [], opens = [], closes = []) => {
+  if (!iso) return false;
+  if (Array.isArray(closes) && closes.includes(iso)) return false;
+  if (Array.isArray(opens) && opens.includes(iso)) return true;
+  const wname = WEEKDAY_NAMES[isoToDate(iso)?.getDay()];
+  return (days || []).includes(wname);
+};
+
+/** Compute a signature for availability to detect changes */
+const computeAvailSignature = (days, opens, closes, mb) => {
+  const key = {
+    d: Array.isArray(days) ? [...days].sort() : days,
+    o: Array.isArray(opens) ? [...opens].sort() : opens,
+    c: Array.isArray(closes) ? [...closes].sort() : closes,
+    m: mb?.start && mb?.end ? `${mb.start}-${mb.end}` : null,
+  };
+  return JSON.stringify(key);
+};
+
+/** Compute available times for a date (pure) */
+const computeAvailableTimes = (dateIso, mb, dur, blocked = []) => {
+  if (!dateIso || !mb?.start || !mb?.end) return [];
+  const startMin = parseTimeToMinutes(mb.start);
+  const endMin = parseTimeToMinutes(mb.end);
+  if (startMin == null || endMin == null || startMin >= endMin) return [];
+  const blockedForDate = (blocked || []).filter((b) => b.date === dateIso);
+  const slots = [];
+  for (let t = startMin; t + dur <= endMin; t += STEP) {
+    const slotStart = t, slotEnd = t + dur;
+    const isBlocked = blockedForDate.some((b) => {
+      const bStart = parseTimeToMinutes(b.start);
+      const bEnd = parseTimeToMinutes(b.end);
+      return bStart != null && bEnd != null && (slotStart < bEnd && bStart < slotEnd);
+    });
+    if (!isBlocked) slots.push(minutesToTime(t));
+  }
+  return slots;
+};
 
 /* =========================
    FancySelect — identical to BookSessionModal
@@ -385,6 +564,192 @@ function FancySelect({
 }
 
 /* =========================
+   Custom hook: roster & maps
+   ========================= */
+function useRoster(isOpen, courseId) {
+  const [roster, setRoster] = useState([]);
+  const [rosterLoadedFor, setRosterLoadedFor] = useState("");
+
+  useEffect(() => {
+    if (!isOpen || !courseId || rosterLoadedFor === courseId) return;
+    let cancelled = false;
+    (async () => {
+      const headers = authHeaders();
+      const ingest = (data) => {
+        const arr = Array.isArray(data)
+          ? data
+          : (Array.isArray(data?.data) && data.data) ||
+            (Array.isArray(data?.students) && data.students) ||
+            (Array.isArray(data?.roster) && data.roster) ||
+            [];
+        return arr.map((a) => normalizeRosterItem(a?.user || a)).filter(Boolean);
+      };
+      let found = [];
+      const tries = [
+        `${API}/api/courses/${courseId}/students`,
+        `${API}/api/courses/${courseId}/roster`,
+        `${API}/api/courses/${courseId}`,
+      ];
+      for (const url of tries) {
+        try {
+          const r = await fetch(url, { headers, credentials: "include" });
+          if (!r.ok) continue;
+          const j = await r.json();
+          const got = ingest(j);
+          if (got.length) { found = got; break; }
+        } catch {}
+      }
+      if (!cancelled) {
+        setRoster(found);
+        setRosterLoadedFor(courseId);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, courseId, rosterLoadedFor]);
+
+  const idByEmail = useMemo(() => {
+    const m = new Map();
+    for (const r of roster) {
+      if (r.email && r.id) m.set(String(r.email).toLowerCase(), toIdString(r.id));
+    }
+    return m;
+  }, [roster]);
+
+  const emailByName = useMemo(() => {
+    const m = new Map();
+    for (const r of roster) {
+      const name = (r?.name || "").trim().toLowerCase();
+      if (name && r.email) m.set(name, String(r.email).toLowerCase());
+    }
+    return m;
+  }, [roster]);
+
+  return { roster, idByEmail, emailByName };
+}
+
+// NEW: Resolve teammate IDs robustly (booking-style)
+// (updated to accept lookup maps)
+async function getTeammateIdsSmart(sess, idByEmail, emailByName) {
+  const outEmails = new Set();
+  const selfEmail = getCurrentEmail();
+  const mentorId =
+    toIdString(sess?.mentorId || sess?.mentor?._id || sess?.mentor?.id) || "";
+
+  // 1) direct participant emails (if saved with the session)
+  const fromPropEmails = []
+    .concat(sess?.participantEmails || [])
+    .concat(sess?.participants?.map?.((p) => p?.email) || [])
+    .concat(sess?.members?.map?.((p) => p?.email) || [])
+    .concat(sess?.students?.map?.((p) => p?.email) || [])
+    .filter(Boolean)
+    .map((e) => String(e).toLowerCase());
+
+  for (const e of fromPropEmails) if (isValidEmail(e)) outEmails.add(e);
+
+  // 2) names-only → map via roster
+  const nameLikeArrays = [
+    sess?.participants, sess?.members, sess?.students, sess?.attendees, sess?.groupMembers
+  ].filter(Array.isArray);
+
+  for (const arr of nameLikeArrays) {
+    for (const it of arr) {
+      const name =
+        (typeof it === "string" ? it : (it?.name || it?.fullName || it?.user?.name)) || "";
+      const email =
+        (typeof it === "string" ? "" : (it?.email || it?.user?.email)) || "";
+      if (isValidEmail(email)) {
+        outEmails.add(String(email).toLowerCase());
+        continue;
+      }
+      const key = String(name || "").trim().toLowerCase();
+      if (key && emailByName?.has(key)) outEmails.add(emailByName.get(key));
+    }
+  }
+
+  // 3) remove actor/self
+  if (selfEmail) outEmails.delete(selfEmail);
+
+  // 4) map to IDs via roster where possible
+  const directIds = new Set();
+  const unresolvedEmails = [];
+  for (const e of outEmails) {
+    const id = idByEmail?.get(e);
+    if (id) directIds.add(id);
+    else unresolvedEmails.push(e);
+  }
+
+  // 5) resolve any remaining emails to IDs via backend
+  if (unresolvedEmails.length) {
+    const map = await resolveEmailsToIds(unresolvedEmails);
+    for (const [email, id] of map.entries()) {
+      if (id) directIds.add(toIdString(id));
+    }
+  }
+
+  // 6) drop mentor & empty
+  const filtered = [...directIds].filter((id) => id && id !== mentorId);
+  return [...new Set(filtered)];
+}
+
+const startOfDayEndOfDay = (isoDate) => {
+  const [Y, M, D] = isoDate.split("-").map(Number);
+  const start = new Date(Y, (M || 1) - 1, D, 0, 0, 0, 0);
+  const end = new Date(Y, (M || 1) - 1, D, 23, 59, 59, 999);
+  return { start, end };
+};
+
+const isCancelledSession = (s) =>
+  !!s?.cancelled || String(s?.status || "").toLowerCase().includes("cancel");
+
+const normalizeSessionRange = (s) => {
+  if (!s) return null;
+  const id = s._id || s.id || s.sessionId || s.meetingId || s.uuid || "";
+  let start, end;
+
+  if (s.startISO) {
+    start = new Date(s.startISO);
+    end = s.endISO
+      ? new Date(s.endISO)
+      : new Date(start.getTime() + (s.duration || 30) * 60000);
+  } else if (s.date) {
+    const raw = String(s.date);
+    const [datePart, timesPart] = raw.split(" - ");
+    if (datePart && timesPart) {
+      const pieces = timesPart
+        .split(/[–-]/)
+        .map((x) => x?.trim())
+        .filter(Boolean);
+      const st = pieces[0],
+        en = pieces[1];
+      if (st) {
+        start = new Date(`${datePart} ${st}`);
+        end = en
+          ? new Date(`${datePart} ${en}`)
+          : new Date(start.getTime() + (s.duration || 30) * 60000);
+      }
+    }
+  } else if (s.start && s.end && s.day) {
+    start = new Date(`${s.day} ${s.start}`);
+    end = new Date(`${s.day} ${s.end}`);
+  }
+
+  if (!(start instanceof Date) || isNaN(start)) return null;
+  if (!(end instanceof Date) || isNaN(end))
+    end = new Date(start.getTime() + (s.duration || 30) * 60000);
+
+  return {
+    id,
+    start,
+    end,
+    subject: s.subject || "",
+    section: s.section || "",
+    cancelled: isCancelledSession(s),
+  };
+};
+
+const minsFromDate = (d) => d.getHours() * 60 + d.getMinutes();
+
+/* =========================
    Component
    ========================= */
 export default function RescheduleSessionModal({
@@ -392,7 +757,7 @@ export default function RescheduleSessionModal({
   onClose,
   session,
   onReschedule,
-  onSuccess, // optional: parent refresh after success
+  onSuccess,
   showToast,
   viewerRole = "student",
 }) {
@@ -534,7 +899,6 @@ export default function RescheduleSessionModal({
   const studentLabel = studentCount === 1 ? "Student" : "Students";
   const entry = availabilityStore[key] || {};
 
-  // Notification copy (who gets notified on submit)
   const notifyTargets = useMemo(() => {
     if (viewerRole === "mentor") {
       return studentNames.length > 1 ? "all students" : "the student";
@@ -555,41 +919,57 @@ export default function RescheduleSessionModal({
     return { start: "07:00", end: "08:15" };
   }
 
-  /* ===== Course schedule from DB (days + start/end) ===== */
+  /* ===== Course schedule from DB (days + start/end + open/closed) ===== */
   const [courseId, setCourseId] = useState(
     session?.courseId || session?.offeringID || ""
   );
+
+  // NEW: roster/mapping derived via custom hook
+  const { roster, idByEmail, emailByName } = useRoster(isOpen, courseId);
+
   const [courseAllowedDays, setCourseAllowedDays] = useState(null);
   const [courseMentoringBlock, setCourseMentoringBlock] = useState(null);
+  const [courseOpenDates, setCourseOpenDates] = useState(null);
+  const [courseClosedDates, setCourseClosedDates] = useState(null);
 
+  // 🔁 UPDATED: resolve courseId WITHOUT /api/courses/lookup (use /mine instead)
   useEffect(() => {
     if (!isOpen) return;
     (async () => {
       if (courseId) return;
       const code = courseCodeFromSubject(session?.subject || "");
-      const section = session?.section || "";
+      const section = String(session?.section || "").trim().toUpperCase();
       if (!code && !section) return;
 
-      const qs1 = new URLSearchParams({
-        courseCode: code || "",
-        section,
-      }).toString();
-      const d1 = await tryFetchJson(`${API}/api/courses/lookup?${qs1}`);
-      const found1 = Array.isArray(d1) ? d1[0] : d1;
-      if (found1?._id || found1?.id) {
-        setCourseId(String(found1._id || found1.id));
-        return;
-      }
-
-      const qs2 = new URLSearchParams({ code: code || "", section }).toString();
-      const d2 = await tryFetchJson(`${API}/api/courses/lookup?${qs2}`);
-      const found2 = Array.isArray(d2) ? d2[0] : d2;
-      if (found2?._id || found2?.id) {
-        setCourseId(String(found2._id || found2.id));
+      const list = await tryFetchJson(`${API}/api/courses/mine`);
+      if (Array.isArray(list) && list.length) {
+        const found = list.find((c) => {
+          const cCode = String(c.courseCode || "").trim().toUpperCase();
+          const cSec = String(c.section || "").trim().toUpperCase();
+          return (!!code ? cCode === String(code).toUpperCase() : true) &&
+                 (!!section ? cSec === section : true);
+        });
+        if (found?._id || found?.id) {
+          setCourseId(String(found._id || found.id));
+        }
       }
     })();
   }, [isOpen, session, courseId]);
 
+  // Normalize date arrays to ["YYYY-MM-DD", ...]
+  const normalizeISODateList = (arr) => {
+    if (!Array.isArray(arr)) return null;
+    return arr
+      .map((x) => {
+        if (!x) return null;
+        if (typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x)) return x;
+        const d = new Date(x);
+        return isNaN(d.getTime()) ? null : dateToISO(d);
+      })
+      .filter(Boolean);
+  };
+
+  // 1) Fetch course doc (fallbacks)
   useEffect(() => {
     if (!isOpen || !courseId) return;
     let cancelled = false;
@@ -598,22 +978,54 @@ export default function RescheduleSessionModal({
       const doc = await tryFetchJson(`${API}/api/courses/${courseId}`);
       if (!doc || cancelled) return;
 
-      const daysRaw =
-        doc.daysOfWeek ||
-        doc.days ||
-        doc.schedule?.daysOfWeek ||
-        doc.schedule?.days ||
-        "";
-      const startRaw = doc.startTime || doc.schedule?.startTime || "";
-      const endRaw = doc.endTime || doc.schedule?.endTime || "";
+      const availability = doc.availability || {};
+      const daysRawFromSchedule =
+        doc.schedule?.days || doc.daysOfWeek || doc.days || "";
 
-      const parsedDays = parseDaysOfWeek(daysRaw);
-      const start = normalizeTime(startRaw);
-      const end = normalizeTime(endRaw);
+      // allowedDays from DB (string or array) -> to ["Mon","Wed",...]
+      let nextAllowedDays = null;
+      const dbAllowed = availability.allowedDays || doc.allowedDays;
+      if (Array.isArray(dbAllowed) && dbAllowed.length) {
+        nextAllowedDays = dbAllowed.map(String);
+      } else if (typeof dbAllowed === "string") {
+        nextAllowedDays = parseDaysOfWeek(dbAllowed);
+      }
+      if (!nextAllowedDays || !nextAllowedDays.length) {
+        const policyDays = allowedFromSchedule(daysRawFromSchedule);
+        if (policyDays && policyDays.length) nextAllowedDays = policyDays;
+      }
+
+      let nextBlock = null;
+      if (availability.mentoringBlock?.start && availability.mentoringBlock?.end) {
+        nextBlock = {
+          start: normalizeTime(availability.mentoringBlock.start),
+          end: normalizeTime(availability.mentoringBlock.end),
+        };
+      } else if (doc.mentoringBlock?.start && doc.mentoringBlock?.end) {
+        nextBlock = {
+          start: normalizeTime(doc.mentoringBlock.start),
+          end: normalizeTime(doc.mentoringBlock.end),
+        };
+      } else {
+        const compact = doc.schedule?.time || "";
+        const parsed = parseCompactRange(compact);
+        if (parsed?.start && parsed?.end) nextBlock = parsed;
+      }
+
+      const opens = normalizeISODateList(
+        availability.openDates || doc.openDates || []
+      );
+      const closes = normalizeISODateList(
+        availability.closedDates || doc.closedDates || []
+      );
 
       if (!cancelled) {
-        if (parsedDays && parsedDays.length) setCourseAllowedDays(parsedDays);
-        if (start && end) setCourseMentoringBlock({ start, end });
+        if (nextAllowedDays && nextAllowedDays.length)
+          setCourseAllowedDays(nextAllowedDays);
+        if (nextBlock?.start && nextBlock?.end)
+          setCourseMentoringBlock(nextBlock);
+        if (opens) setCourseOpenDates(opens);
+        if (closes) setCourseClosedDates(closes);
       }
     })();
 
@@ -622,24 +1034,59 @@ export default function RescheduleSessionModal({
     };
   }, [isOpen, courseId]);
 
+  /* 2) 🔹 Fetch live availability (same endpoint used by BookSessionModal) */
+  const [avAllowedDays, setAvAllowedDays] = useState(undefined); // array or undefined
+  const [avOpenDates, setAvOpenDates] = useState([]);            // ["YYYY-MM-DD"]
+  const [avClosedDates, setAvClosedDates] = useState([]);        // ["YYYY-MM-DD"]
+  const [avMentoringBlock, setAvMentoringBlock] = useState(null);// {start,end} or null
+  const [avSig, setAvSig] = useState("");
+
+  useEffect(() => {
+    if (!isOpen || !courseId) return;
+    let cancelled = false;
+    (async () => {
+      const raw = await tryFetchJson(`${API}/api/courses/${courseId}/availability`);
+      if (!raw || cancelled) return;
+      const av = (raw && typeof raw === "object" && raw.availability && typeof raw.availability === "object")
+        ? raw.availability
+        : raw;
+
+      const days = Array.isArray(av?.allowedDays) ? av.allowedDays : undefined; // undefined => fall back to course policy
+      const opens = normalizeISODateList(av?.openDates || []);
+      const closes = normalizeISODateList(av?.closedDates || []);
+      const mb = (av?.mentoringBlock?.start && av?.mentoringBlock?.end)
+        ? { start: normalizeTime(av.mentoringBlock.start), end: normalizeTime(av.mentoringBlock.end) }
+        : null;
+
+      setAvAllowedDays(days);
+      setAvOpenDates(opens || []);
+      setAvClosedDates(closes || []);
+      if (mb && mb.start && mb.end) setAvMentoringBlock(mb);
+
+      const effDays = Array.isArray(days) ? days : (Array.isArray(courseAllowedDays) ? courseAllowedDays : []);
+      const effMb   = mb || courseMentoringBlock || null;
+      setAvSig(computeAvailSignature(effDays, opens || [], closes || [], effMb));
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, courseId, courseAllowedDays, courseMentoringBlock]);
+
+  // Preferred mentoring block (live → course → local fallback)
   const mentoringBlock =
+    avMentoringBlock ||
     courseMentoringBlock ||
     entry.mentoringBlock ||
     defaultMentoringBlockForSection(session?.section?.[0] || session?.section);
 
+  // Local-storage allowedDays fallback
   const allowedDaysFromEntry = (() => {
-    if (
-      entry.allowedDays &&
-      Array.isArray(entry.allowedDays) &&
-      entry.allowedDays.length
-    )
+    if (Array.isArray(entry.allowedDays) && entry.allowedDays.length) {
       return entry.allowedDays;
+    }
     if (entry.days) {
-      const s = String(entry.days).toLowerCase();
-      if (s.includes("mwf")) return ["Mon", "Wed", "Fri"];
-      if (s.includes("tth")) return ["Tue", "Thu"];
-      if (s.includes("wed")) return ["Wed", "Fri"];
-      if (s.includes("thu")) return ["Thu", "Sat"];
+      const schedFallback = allowedFromSchedule(entry.days);
+      if (schedFallback && schedFallback.length) return schedFallback;
+      const parsed = parseDaysOfWeek(entry.days);
+      if (parsed && parsed.length) return parsed;
     }
     return null;
   })();
@@ -649,9 +1096,26 @@ export default function RescheduleSessionModal({
     return PRESET_DAY_SETS[idx];
   }, [key]);
 
-  const allowedDays =
-    courseAllowedDays || allowedDaysFromEntry || defaultAllowed;
-  const mentorBlocked = entry.blocked || [];
+  // ✅ Final allowedDays with correct semantics:
+  // - If backend specifies [], it means “no default days; only special opens”
+  // - If backend returns undefined, fall back to course policy or entry/default
+  const allowedDays = useMemo(() => {
+    if (Array.isArray(avAllowedDays)) return avAllowedDays;          // [] is valid
+    if (Array.isArray(courseAllowedDays)) return courseAllowedDays;
+    return allowedDaysFromEntry || defaultAllowed;
+  }, [avAllowedDays, courseAllowedDays, allowedDaysFromEntry, defaultAllowed]);
+
+  // Prefer live open/closed date lists; fall back to course-level ones
+  const openDates = (avOpenDates && avOpenDates.length) ? avOpenDates : (courseOpenDates || []);
+  const closedDates = (avClosedDates && avClosedDates.length) ? avClosedDates : (courseClosedDates || []);
+
+  // Footer summary (mirror BookSessionModal’s wording)
+  const allowedSummary =
+    Array.isArray(avAllowedDays)
+      ? (avAllowedDays.length ? `Allowed: ${avAllowedDays.join(", ")}` : "Allowed: (none; only special open dates)")
+      : (Array.isArray(courseAllowedDays) && courseAllowedDays.length
+          ? `Allowed: ${courseAllowedDays.join(", ")}`
+          : "Allowed: (none)");
 
   const daysGrid = useMemo(() => {
     const m = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
@@ -675,32 +1139,27 @@ export default function RescheduleSessionModal({
   }, [viewMonth]);
 
   const isSixRows = daysGrid.length >= 6;
+  const todayISO = dateToISO(new Date());
 
-  const weekdayNameFromISODate = (isoDate) => {
-    if (!isoDate) return null;
-    const d = isoToDate(isoDate);
-    if (!d || isNaN(d.getTime())) return null;
-    return WEEKDAY_NAMES[d.getDay()];
+  // 🔹 Master check (mirror BookSessionModal): closed overrides, openDates additive; else weekday allow
+  const isDateOpenByAvailability = (iso) => {
+    if (!iso) return false;
+    if (Array.isArray(closedDates) && closedDates.includes(iso)) return false;
+    if (Array.isArray(openDates) && openDates.includes(iso)) return true;
+    const wname = WEEKDAY_NAMES[isoToDate(iso)?.getDay()];
+    return Array.isArray(allowedDays) && allowedDays.includes(wname);
   };
 
-  const isWeekdayAllowed = (dateObj) => {
-    if (!allowedDays || !Array.isArray(allowedDays) || allowedDays.length === 0)
-      return true;
-    const name = WEEKDAY_NAMES[dateObj.getDay()];
-    return allowedDays.includes(name);
-  };
-
-  const isDateDisabled = (dateObj) => {
-    if (!dateObj) return true;
+  const isDateSelectable = (dateObj) => {
+    if (!dateObj) return false;
     const ymd = dateToISO(dateObj);
-    const todayISO = dateToISO(new Date());
-    if (ymd < todayISO) return true;
-    if (!isWeekdayAllowed(dateObj)) return true;
-    return false;
+    if (ymd < todayISO) return false;
+    return isDateOpenByAvailability(ymd);
   };
 
+  const isDateDisabled = (dateObj) => !isDateSelectable(dateObj);
   const hasBlockedOnDate = (iso) =>
-    (mentorBlocked || []).some((b) => b.date === iso);
+    (entry.blocked || []).some((b) => b.date === iso);
 
   /* ===== Own sessions for conflict checks ===== */
   const [ownSessions, setOwnSessions] = useState([]);
@@ -717,7 +1176,6 @@ export default function RescheduleSessionModal({
         to: end.toISOString(),
       }).toString();
 
-      // Try a few common patterns; take the first that returns an array
       const attempts = [
         `${API}/api/sessions/mine?${qs}`,
         `${API}/api/users/me/sessions?${qs}`,
@@ -754,11 +1212,8 @@ export default function RescheduleSessionModal({
     const result = { rawTimes: [], availableTimes: [], ownBusyWindows: [] };
     if (!formData.date) return result;
 
-    // weekday gate
-    if (Array.isArray(allowedDays)) {
-      const w = weekdayNameFromISODate(formData.date);
-      if (!w || !allowedDays.includes(w)) return result;
-    }
+    const d = isoToDate(formData.date);
+    if (!d || !isDateSelectable(d)) return result;
 
     const startMin = parseTimeToMinutes(mentoringBlock.start);
     const endMin = parseTimeToMinutes(mentoringBlock.end);
@@ -766,16 +1221,15 @@ export default function RescheduleSessionModal({
     if (startMin === null || endMin === null || startMin >= endMin)
       return result;
 
-    // mentor blocks for this date
-    const blockedForDate = mentorBlocked.filter((b) => b.date === formData.date);
+    const blockedForDate = (entry.blocked || []).filter(
+      (b) => b.date === formData.date
+    );
 
-    // raw (no overlap checks yet)
     const raw = [];
     for (let t = startMin; t + dur <= endMin; t += STEP) {
       const slotStart = t,
         slotEnd = t + dur;
 
-      // mentor block overlap?
       const isBlocked = blockedForDate.some((b) => {
         const bStart = parseTimeToMinutes(b.start);
         const bEnd = parseTimeToMinutes(b.end);
@@ -800,21 +1254,11 @@ export default function RescheduleSessionModal({
       raw.push(minutesToTime(t));
     }
 
-    // Build my busy windows (mins) for the same day (ignore current session + cancelled)
     const myBusy = (ownSessions || [])
       .map(normalizeSessionRange)
       .filter(Boolean)
       .filter((r) => !r.cancelled)
-      .filter((r) => {
-        const curId =
-          session?._id ||
-          session?.id ||
-          session?.sessionId ||
-          session?.meetingId ||
-          "";
-        if (curId && r.id && String(r.id) === String(curId)) return false;
-        return dateToISO(r.start) === formData.date; // same day
-      })
+      .filter((r) => dateToISO(r.start) === formData.date)
       .map((r) => ({
         start: minsFromDate(r.start),
         end: Math.max(
@@ -828,7 +1272,6 @@ export default function RescheduleSessionModal({
         }`,
       }));
 
-    // Filter out any raw slot that overlaps my busy windows
     const filtered = raw.filter((t) => {
       const ss = parseTimeToMinutes(t);
       const ee = ss + (parseInt(formData.duration, 10) || 30);
@@ -843,8 +1286,10 @@ export default function RescheduleSessionModal({
     mentoringBlock,
     formData.date,
     formData.duration,
-    mentorBlocked,
+    entry.blocked,
     allowedDays,
+    openDates,
+    closedDates,
     ownSessions,
     session?._id,
     session?.id,
@@ -872,37 +1317,271 @@ export default function RescheduleSessionModal({
     setFormData((f) => ({ ...f, date: iso }));
   };
 
-  /* ===== Default API-backed rescheduler (runs if onReschedule prop isn't provided) ===== */
   const rescheduleViaApi = async (payload) => {
-    const sessionId =
-      session?._id || session?.id || session?.sessionId || session?.meetingId;
+    const sessionId = session?._id || session?.id || session?.sessionId || session?.meetingId;
+    if (!sessionId) return null;
+    // Align with working update API
     const body = {
-      sessionId,
-      subject: payload.subject,
-      section: payload.section,
-      mentor: payload.mentor,
-      date: payload.date, // "YYYY-MM-DD"
-      time: payload.time, // "HH:mm" local
-      duration: payload.duration, // minutes
       topic: payload.topic,
       reason: payload.reason,
-      startISO: payload.startISO, // UTC ISO for server
-      endISO: payload.endISO,
+      scheduleStart: payload.startISO, // server expects scheduleStart/End
+      scheduleEnd: payload.endISO,
+      availabilityVersion: avSig || undefined, // optimistic guard if your backend supports it
     };
+    // Prefer PATCH (same as your update flow)
+    const primary = await tryFetchJson(`${API}/api/sessions/${sessionId}`, "PATCH", body);
+    if (primary) return primary;
+    // Fallbacks (in case you also expose a /reschedule route)
+    const fallback1 = await tryFetchJson(`${API}/api/sessions/${sessionId}/reschedule`, "POST", body);
+    if (fallback1) return fallback1;
+    const fallback2 = await tryFetchJson(`${API}/api/sessions/reschedule`, "POST", { sessionId, ...body });
+    return fallback2 || null;
+  };
 
-    // Try common patterns in order
-    const attempts = [];
-    if (sessionId) {
-      attempts.push([`${API}/api/sessions/${sessionId}/reschedule`, "POST"]);
-      attempts.push([`${API}/api/sessions/${sessionId}`, "PATCH"]);
-    }
-    attempts.push([`${API}/api/sessions/reschedule`, "POST"]);
+  /* === NEW: mentor/participants resolution + notifications === */
+  const getCourseMentorId = async () => {
+    // Try to pull mentorId from the course doc if available
+    if (!courseId) return "";
+    const doc = await tryFetchJson(`${API}/api/courses/${courseId}`);
+    const fromDoc =
+      toIdString(doc?.mentorId) ||
+      toIdString(doc?.mentor?._id) ||
+      toIdString(doc?.mentor?.id);
+    if (fromDoc) return fromDoc;
 
-    for (const [url, method] of attempts) {
-      const res = await tryFetchJson(url, method, body);
-      if (res) return res;
+    // Fallback: try /mine then match by _id
+    const mine = await tryFetchJson(`${API}/api/courses/mine`);
+    const list = Array.isArray(mine) ? mine : mine?.data || [];
+    const found = list.find((c) => toIdString(c._id || c.id) === toIdString(courseId));
+    const fromList =
+      toIdString(found?.mentorId) ||
+      toIdString(found?.mentor?._id) ||
+      toIdString(found?.mentor?.id);
+    return fromList || "";
+  };
+
+  const extractParticipantIdsAndEmails = (sess) => {
+    const buckets = [];
+    const candidateArrays = [
+      sess?.students, sess?.members, sess?.participants, sess?.attendees, sess?.groupMembers
+    ];
+    for (const arr of candidateArrays) {
+      if (Array.isArray(arr) && arr.length) buckets.push(arr);
     }
-    return null;
+    const emails = new Set();
+    const ids = new Set();
+
+    for (const arr of buckets) {
+      for (const item of arr) {
+        const norm = normalizeRosterItem(item || {});
+        if (norm.id) ids.add(norm.id);
+        if (norm.email) emails.add(norm.email);
+        // also peek nested user
+        const nUser = normalizeRosterItem(item?.user || {});
+        if (nUser.id) ids.add(nUser.id);
+        if (nUser.email) emails.add(nUser.email);
+      }
+    }
+    return { ids: [...ids], emails: [...emails] };
+  };
+
+  async function getParticipantIdsForSession(sess) {
+    const ids = new Set();
+
+    const mentorId =
+      toIdString(sess?.mentorId || sess?.mentor?._id || sess?.mentor?.id) || "";
+
+    // 1) Grab whatever the session already exposes (ids/emails on students/members/participants/attendees/roster)
+    const parts = extractParticipantIdsAndEmails(sess);
+    (parts.ids || []).forEach((id) => id && ids.add(toIdString(id)));
+
+    // 2) If there are emails, resolve to IDs
+    if ((parts.emails || []).length) {
+      const map = await resolveEmailsToIds(parts.emails);
+      for (const [, id] of map.entries()) {
+        if (id) ids.add(toIdString(id));
+      }
+    }
+
+    // 3) Still empty? Try common roster endpoints for this session
+    if (ids.size === 0) {
+      const sessionId = toIdString(
+        sess?._id || sess?.id || sess?.sessionId || sess?.meetingId
+      );
+      if (sessionId) {
+        const headers = authHeaders();
+        const tryUrls = [
+          `${API}/api/sessions/${sessionId}/roster`,
+          `${API}/api/sessions/${sessionId}/participants`,
+          `${API}/api/sessions/${sessionId}/members`,
+          `${API}/api/sessions/${sessionId}`,
+          `${API}/api/sessions/roster?sessionId=${encodeURIComponent(sessionId)}`,
+          `${API}/api/sessions/${sessionId}/attendees`,
+        ];
+        for (const url of tryUrls) {
+          try {
+            const r = await fetch(url, { headers, credentials: "include" });
+            if (!r.ok) continue;
+            const j = await r.json();
+
+            const asArray = (val) => (Array.isArray(val) ? val : []);
+            const pick =
+              (Array.isArray(j) && j) ||
+              asArray(j?.members) ||
+              asArray(j?.groupMembers) ||
+              asArray(j?.roster) ||
+              asArray(j?.students) ||
+              asArray(j?.attendees) ||
+              asArray(j?.data?.students) ||
+              [];
+
+            const normalized = pick.map((a) =>
+              normalizeRosterItem(a?.user || a)
+            );
+            for (const n of normalized) {
+              if (n?.id) ids.add(toIdString(n.id));
+            }
+            if (ids.size) break;
+          } catch {}
+        }
+      }
+    }
+
+    // 4) Filter out mentor & self to avoid duplicate notifications
+    const selfId = await getSelfUserId();
+    const filtered = [...ids].filter(
+      (id) => id && id !== mentorId && id !== selfId
+    );
+
+    return [...new Set(filtered)];
+  }
+
+  const notifyRescheduleAll = async ({ startISO, endISO, reason, duration }) => {
+    try {
+      // Old vs new labels
+      const oldRange = normalizeSessionRange(session);
+      const oldStartISO = oldRange?.start?.toISOString() || session?.startISO || "";
+      const oldEndISO   = oldRange?.end?.toISOString()   || session?.endISO   || "";
+      const oldLbl = formatDateTimeForNotif(oldStartISO, oldEndISO);
+      const newLbl = formatDateTimeForNotif(startISO, endISO);
+
+      const courseLabel = `${session.subject} — ${session.section}`.trim();
+      const reasonSuffix = reason ? ` Reason: ${reason}` : "";
+      const nowIso = new Date().toISOString();
+
+      // Resolve recipients
+      const mentorId =
+        toIdString(session?.mentorId || session?.mentor?._id || session?.mentor?.id) ||
+        (await getCourseMentorId());
+
+      let participantIds = [];
+      try {
+        // Prefer booking-style resolution (teammates) — pass the maps
+        participantIds = await getTeammateIdsSmart(session, idByEmail, emailByName);
+        if (!participantIds.length) {
+          // Fallback to old session-roster resolver
+          participantIds = await getParticipantIdsForSession(session);
+        }
+      } catch {
+        participantIds = await getParticipantIdsForSession(session);
+      }
+
+      // Students / teammates
+      for (const pid of participantIds) {
+        await sendUnifiedNotification(pid, {
+          type: "session",
+          title: `Session rescheduled: ${courseLabel} • ${newLbl.label}`,
+          message: `Your session for ${courseLabel} was moved from ${oldLbl.label} to ${newLbl.label}.${reasonSuffix}`,
+          link: "/my-schedule",
+          content: `Your session for ${courseLabel} was moved from ${oldLbl.label} to ${newLbl.label}.${reasonSuffix}`,
+          pageRelated: "/my-schedule",
+          createdAt: nowIso,
+          meta: {
+            subject: session.subject,
+            section: session.section,
+            courseLabel,
+            oldStart: oldStartISO, oldEnd: oldEndISO,
+            newStart: startISO,   newEnd: endISO,
+            durationMin: Number(duration) || newLbl.durationMin || 0,
+            tzShort: newLbl.tzShort,
+            actorRole: viewerRole,
+          },
+        });
+      }
+
+      const selfId = await getSelfUserId();
+
+      // Mentor notification
+      if (mentorId) {
+        await sendUnifiedNotification(mentorId, {
+          type: "session",
+          title: `Session rescheduled: ${courseLabel} • ${newLbl.label}`,
+          message: `Session for ${courseLabel} moved from ${oldLbl.label} to ${newLbl.label}.${reasonSuffix}`,
+          link: "/mentor/schedule",
+          content: `Session for ${courseLabel} moved from ${oldLbl.label} to ${newLbl.label}.${reasonSuffix}`,
+          pageRelated: "/mentor/schedule",
+          createdAt: nowIso,
+          meta: {
+            subject: session.subject,
+            section: session.section,
+            courseLabel,
+            oldStart: oldStartISO, oldEnd: oldEndISO,
+            newStart: startISO,   newEnd: endISO,
+            durationMin: Number(duration) || newLbl.durationMin || 0,
+            tzShort: newLbl.tzShort,
+            actorRole: viewerRole,
+          },
+        });
+      }
+
+      // Students / teammates (duplicate block kept for parity with prior behavior)
+      for (const pid of participantIds) {
+        await sendUnifiedNotification(pid, {
+          type: "session",
+          title: `Session rescheduled: ${courseLabel} • ${newLbl.label}`,
+          message: `Your session for ${courseLabel} was moved from ${oldLbl.label} to ${newLbl.label}.${reasonSuffix}`,
+          link: "/my-schedule",
+          content: `Your session for ${courseLabel} was moved from ${oldLbl.label} to ${newLbl.label}.${reasonSuffix}`,
+          pageRelated: "/my-schedule",
+          createdAt: nowIso,
+          meta: {
+            subject: session.subject,
+            section: session.section,
+            courseLabel,
+            oldStart: oldStartISO, oldEnd: oldEndISO,
+            newStart: startISO,   newEnd: endISO,
+            durationMin: Number(duration) || newLbl.durationMin || 0,
+            tzShort: newLbl.tzShort,
+            actorRole: viewerRole,
+          },
+        });
+      }
+
+      // Actor confirmation
+      if (selfId) {
+        await sendUnifiedNotification(selfId, {
+          type: "session",
+          title: `Rescheduled: ${courseLabel} • ${newLbl.label}`,
+          message: `You rescheduled ${courseLabel} from ${oldLbl.label} to ${newLbl.label}.${reasonSuffix}`,
+          link: viewerRole === "mentor" ? "/mentor/schedule" : "/my-schedule",
+          content: `You rescheduled ${courseLabel} from ${oldLbl.label} to ${newLbl.label}.${reasonSuffix}`,
+          pageRelated: viewerRole === "mentor" ? "/mentor/schedule" : "/my-schedule",
+          createdAt: nowIso,
+          meta: {
+            subject: session.subject,
+            section: session.section,
+            courseLabel,
+            oldStart: oldStartISO, oldEnd: oldEndISO,
+            newStart: startISO,   newEnd: endISO,
+            durationMin: Number(duration) || newLbl.durationMin || 0,
+            tzShort: newLbl.tzShort,
+            actorRole: viewerRole,
+          },
+        });
+      }
+    } catch {
+      // silent best-effort
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -921,7 +1600,6 @@ export default function RescheduleSessionModal({
     }
     if (!ack) return;
 
-    // Hard block if new start is < 24h from now
     if (!isStartAtLeast24hFromNow(formData.date, formData.time)) {
       (showToast || showLocalToast)?.(
         "Selected start time must be at least 24 hours from now.",
@@ -947,6 +1625,7 @@ export default function RescheduleSessionModal({
       reason: reasonTrim,
       startISO,
       endISO,
+      availabilityVersion: avSig || undefined,
     };
 
     try {
@@ -954,7 +1633,6 @@ export default function RescheduleSessionModal({
 
       let ok = false;
       if (typeof onReschedule === "function") {
-        // If parent handles it, do NOT fall back to API when it returns false.
         ok = !!(await onReschedule(payload));
       } else {
         const apiResult = await rescheduleViaApi(payload);
@@ -962,6 +1640,14 @@ export default function RescheduleSessionModal({
       }
 
       if (ok) {
+        // NEW: fire notifications (best-effort)
+        await notifyRescheduleAll({
+          startISO,
+          endISO,
+          reason: reasonTrim,
+          duration: Number(formData.duration),
+        });
+
         (showToast || showLocalToast)?.(
           "Session rescheduled successfully.",
           "success"
@@ -993,40 +1679,24 @@ export default function RescheduleSessionModal({
     month: "long",
     year: "numeric",
   });
-  const todayISO = dateToISO(new Date());
+
   const getNextAllowedDateISO = () => {
     const start = formData.date ? isoToDate(formData.date) : new Date();
     let d = new Date(start.getFullYear(), start.getMonth(), start.getDate());
     for (let i = 0; i < 365; i++) {
       const iso = dateToISO(d);
-      if (
-        iso >= todayISO &&
-        (!allowedDays || allowedDays.includes(WEEKDAY_NAMES[d.getDay()])) &&
-        // Find the first date that can have at least one slot >= 24h
-        (() => {
-          const dayStartCandidate = new Date(
-            d.getFullYear(),
-            d.getMonth(),
-            d.getDate(),
-            parseInt((mentoringBlock.start || "00:00").split(":")[0] || 0, 10),
-            parseInt((mentoringBlock.start || "00:00").split(":")[1] || 0, 10),
-            0,
-            0
-          );
-          const dayEndCandidate = new Date(
-            d.getFullYear(),
-            d.getMonth(),
-            d.getDate(),
-            parseInt((mentoringBlock.end || "23:59").split(":")[0] || 23, 10),
-            parseInt((mentoringBlock.end || "23:59").split(":")[1] || 59, 10),
-            0,
-            0
-          );
-          // If entire day window is before min lead, skip
-          return dayEndCandidate.getTime() - Date.now() >= MIN_LEAD_MS;
-        })()
-      )
-        return iso;
+      if (isDateSelectable(d)) {
+        const dayEndCandidate = new Date(
+          d.getFullYear(),
+          d.getMonth(),
+          d.getDate(),
+          parseInt((mentoringBlock.end || "23:59").split(":")[0] || 23, 10),
+          parseInt((mentoringBlock.end || "23:59").split(":")[1] || 59, 10),
+          0,
+          0
+        );
+        if (dayEndCandidate.getTime() - Date.now() >= MIN_LEAD_MS) return iso;
+      }
       d.setDate(d.getDate() + 1);
     }
     return null;
@@ -1150,18 +1820,21 @@ export default function RescheduleSessionModal({
   /* =========================
      >= 24h flow
      ========================= */
-  const dateAllowed =
-    formData.date &&
-    (!Array.isArray(allowedDays) ||
-      allowedDays.includes(weekdayNameFromISODate(formData.date)));
+  const dateAllowed = formData.date
+    ? isDateSelectable(isoToDate(formData.date))
+    : false;
+
   const timeDisabled =
-    !formData.date || !dateAllowed || availableTimes.length === 0;
+    submitting || !formData.date || !dateAllowed || availableTimes.length === 0;
 
   const reasonTrimmed = formData.reason.trim();
   const newStartOk =
     formData.date && formData.time
       ? isStartAtLeast24hFromNow(formData.date, formData.time)
       : false;
+
+  // NEW: mentors cannot edit topic
+  const canEditTopic = viewerRole !== "mentor";
 
   return (
     <div className="reschedule-modal" role="dialog" aria-modal="true">
@@ -1325,7 +1998,9 @@ export default function RescheduleSessionModal({
                                     disabled
                                       ? iso < dateToISO(new Date())
                                         ? "Past date"
-                                        : "Not available for mentoring on this weekday"
+                                        : !isDateOpenByAvailability(iso)
+                                        ? "Not available for mentoring on this date"
+                                        : "Not available"
                                       : blocked
                                       ? "Has blocked sub-range"
                                       : "Select date"
@@ -1346,7 +2021,7 @@ export default function RescheduleSessionModal({
                                     )}
                                   </div>
                                   <div className="cal-day-sub">
-                                    {isWeekdayAllowed(cell) ? "" : "N/A"}
+                                    {isDateOpenByAvailability(iso) ? "" : "N/A"}
                                   </div>
                                 </button>
                               </td>
@@ -1359,11 +2034,7 @@ export default function RescheduleSessionModal({
                 </div>
 
                 <div className="calendar-footer">
-                  <div className="allowed-text">
-                    {allowedDays
-                      ? `Allowed: ${allowedDays.join(", ")}`
-                      : "Allowed: all weekdays"}
-                  </div>
+                  <div className="allowed-text">{allowedSummary}</div>
                   <div className="selected-text">
                     {formData.date
                       ? `Selected: ${formData.date}`
@@ -1408,9 +2079,7 @@ export default function RescheduleSessionModal({
                     onChange={(v) =>
                       setFormData((f) => ({ ...f, time: String(v) }))
                     }
-                    disabled={
-                      submitting || !formData.date || !dateAllowed || timeDisabled
-                    }
+                    disabled={timeDisabled}
                     placeholder={
                       !formData.date
                         ? "Pick a date first"
@@ -1438,8 +2107,7 @@ export default function RescheduleSessionModal({
                     }
                   />
                   <div className="small-note">
-                    Time range: {fmt12(mentoringBlock.start)} —{" "}
-                    {fmt12(mentoringBlock.end)}
+                    Time range: {fmt12(mentoringBlock.start)} — {fmt12(mentoringBlock.end)}
                   </div>
                   {ownBusyWindows.length > 0 && (
                     <div className="small-note" style={{ marginTop: 4 }}>
@@ -1463,15 +2131,35 @@ export default function RescheduleSessionModal({
                   <label className="label" htmlFor="topic">
                     Topic
                   </label>
-                  <input
-                    id="topic"
-                    type="text"
-                    name="topic"
-                    value={formData.topic}
-                    onChange={handleChange}
-                    placeholder="e.g., Week 4 assignment and project feedback"
-                    required
-                  />
+
+                  {canEditTopic ? (
+                    <input
+                      id="topic"
+                      type="text"
+                      name="topic"
+                      value={formData.topic}
+                      onChange={handleChange}
+                      placeholder="e.g., Week 4 assignment and project feedback"
+                      required
+                    />
+                  ) : (
+                    <>
+                      <div
+                        className="readonly-field"
+                        aria-readonly="true"
+                        title="Mentors can't change the topic while rescheduling"
+                        style={{
+                          padding: "0.6rem 0.75rem",
+                          background: "#f8fafc",
+                          border: "1px dashed #cbd5e1",
+                          borderRadius: 6,
+                          color: "#334155",
+                        }}
+                      >
+                        {formData.topic || "—"}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Reason */}
@@ -1509,12 +2197,14 @@ export default function RescheduleSessionModal({
                     onClick={onClose}
                     className="btn btn-ghost"
                     disabled={submitting}
+                    style={{ borderRadius: 6 }}
                   >
                     Close
                   </button>
                   <button
                     type="submit"
                     className="btn btn-primary"
+                    style={{ borderRadius: 6 }}
                     disabled={
                       !ack ||
                       submitting ||
@@ -1532,7 +2222,7 @@ export default function RescheduleSessionModal({
                       !newStartOk
                     }
                   >
-                    {submitting ? "Rescheduling…" : "Reschedule"}
+                    {submitting ? "Rescheduling…" : "Confirm"}
                   </button>
                 </div>
               </div>
@@ -1544,3 +2234,95 @@ export default function RescheduleSessionModal({
     </div>
   );
 }
+
+/* ===== Existing helpers kept below ===== */
+
+const toLocalYMDHM = (iso) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return { date: "", time: "" };
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const HH = String(d.getHours()).padStart(2, "0");
+  const MM = String(d.getMinutes()).padStart(2, "0");
+  return { date: `${yyyy}-${mm}-${dd}`, time: `${HH}:${MM}` };
+};
+
+const extractStudentNames = (arr) => {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((s) => {
+      if (typeof s === "string") return s.trim();
+      if (s && typeof s === "object") {
+        const u = s.user && typeof s.user === "object" ? s.user : null;
+        const parts = [
+          s.name,
+          s.fullName,
+          [s.firstName, s.lastName].filter(Boolean).join(" ").trim(),
+          s.displayName,
+          s.username,
+          s.email,
+          s.rollNo,
+          u?.name,
+          u?.fullName,
+          [u?.firstName, u?.lastName].filter(Boolean).join(" ").trim(),
+          u?.displayName,
+          u?.username,
+          u?.email,
+        ];
+        const found = parts.find((p) => typeof p === "string" && p.trim());
+        if (found) return found.trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+};
+
+/** Accepts "MWF", "TTh", "Mon/Wed/Fri", etc -> ["Mon","Wed","Fri"] */
+const parseDaysOfWeek = (input) => {
+  if (!input) return null;
+  let s = String(input).toUpperCase().replace(/\s+|\/|,|-/g, "");
+  if (!s) return null;
+  const tokens = [];
+  while (s.length) {
+    if (s.startsWith("TH")) {
+      tokens.push("TH");
+      s = s.slice(2);
+    } else if (s.startsWith("SU")) {
+      tokens.push("SU");
+      s = s.slice(2);
+    } else if (s.startsWith("SA")) {
+      tokens.push("SA");
+      s = s.slice(2);
+    } else {
+      tokens.push(s[0]);
+      s = s.slice(1);
+    }
+  }
+  const map = { M: "Mon", T: "Tue", W: "Wed", TH: "Thu", F: "Fri", SA: "Sat", SU: "Sun" };
+  const out = tokens.map((t) => map[t]).filter(Boolean);
+  return out.length ? out : null;
+};
+
+const courseCodeFromSubject = (s = "") =>
+  (s || "").trim().split(/\s+/)[0] || "";
+
+/* Build ISO datetimes from selected date/time + duration */
+const buildStartEndISO = (dateYMD, timeHM, durationMins) => {
+  if (!dateYMD || !timeHM) return { startISO: "", endISO: "" };
+  const [Y, M, D] = dateYMD.split("-").map(Number);
+  const [h, m] = timeHM.split(":").map(Number);
+  const start = new Date(Y, (M || 1) - 1, D, h, m, 0, 0); // local time
+  const end = new Date(start.getTime() + (Number(durationMins) || 30) * 60000);
+  return { startISO: start.toISOString(), endISO: end.toISOString() };
+};
+
+/** Is selected start at least 24 hours from now? */
+const isStartAtLeast24hFromNow = (dateYMD, timeHM) => {
+  if (!dateYMD || !timeHM) return false;
+  const [Y, M, D] = dateYMD.split("-").map(Number);
+  const [h, m] = timeHM.split(":").map(Number);
+  const start = new Date(Y, (M || 1) - 1, D, h, m, 0, 0);
+  if (isNaN(start.getTime())) return false;
+  return start.getTime() - Date.now() >= MIN_LEAD_MS;
+};

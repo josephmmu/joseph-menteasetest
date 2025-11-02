@@ -1,177 +1,328 @@
 // routes/notificationRoutes.js
 const express = require("express");
+const mongoose = require("mongoose");
+const router = express.Router();
 const Notification = require("../models/Notification");
 
-const router = express.Router();
+// --- auth guard ---
+const { protect } = require("../middleware/authMiddleware");
+const auth = protect;
 
-/* Helper to sniff current user from middleware (if you have one) or headers.
-   Adjust this if your auth middleware sets req.user differently. */
-function getUserIdFromReq(req) {
-  return (
-    req.user?.id ||
-    req.user?._id ||
-    req.userId ||
-    req.auth?.id ||
-    req.headers["x-user-id"] || // last-resort dev override
-    null
-  );
+// --- email + db service (FIX: use service so emails actually send) ---
+const {
+  createNotificationAndMaybeEmail,
+} = require("../services/notificationService");
+
+/* ----------------------------------------
+   Helpers
+----------------------------------------- */
+
+// Normalize body & target user
+function pickRecipient(req) {
+  const v =
+    req.body?.toUserId ||
+    req.body?.to ||
+    req.params?.userId ||
+    req.query?.recipient ||
+    "";
+  return String(v || "").trim();
 }
 
-/* Normalizes incoming payloads from various clients:
-   - Our UI uses: { userId, title, content, pageRelated, status }
-   - BookSessionModal may send: { toUserId, title, message, link, createdAt }
-*/
-function normalizeIncoming(body = {}, fallbackUserId = null) {
-  const userId =
-    body.userId ||
-    body.to ||
-    body.toUserId ||
-    body.recipientId ||
-    fallbackUserId;
+function boolFromQuery(v, def = undefined) {
+  if (v === undefined) return def;
+  if (typeof v === "boolean") return v;
+  const s = String(v).toLowerCase();
+  if (["true", "1", "yes", "y"].includes(s)) return true;
+  if (["false", "0", "no", "n"].includes(s)) return false;
+  return def;
+}
 
-  const title = body.title || body.subject || "Notification";
-  const content = body.content || body.message || body.body || "";
-  const pageRelated = body.pageRelated || body.link || body.url || "";
-  const status = body.status || "unread";
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(String(id || ""));
 
-  const createdAt = body.createdAt ? new Date(body.createdAt) : undefined;
+// Unified sender → DB document shape
+function shapeDocFromBody(req, to) {
+  const sendEmail =
+    boolFromQuery(req.body?.sendEmail, undefined) ??
+    boolFromQuery(req.query?.email, true); // FIX: default to true so emails go out
 
   return {
-    userId,
-    title,
-    content,
-    pageRelated,
-    status,
-    ...(createdAt ? { createdAt } : {}),
+    recipient: to,
+    type: (req.body.type || "session").toLowerCase(),
+    title: req.body.title || "Update",
+    message: req.body.message || req.body.content || "",
+    content: req.body.content || req.body.message || "",
+    link: req.body.link || req.body.pageRelated || "/my-schedule",
+    pageRelated: req.body.pageRelated || req.body.link || "/my-schedule",
+    meta: req.body.meta || {},
+    sendEmail,
   };
 }
 
-/* =========================
-   Routes
-   ========================= */
+// Async wrapper to avoid try/catch noise
+const aw =
+  (fn) =>
+  (req, res, next) =>
+    Promise.resolve(fn(req, res, next)).catch(next);
 
-// Create one
-router.post("/", async (req, res) => {
-  try {
-    const me = getUserIdFromReq(req);
-    const data = normalizeIncoming(req.body, me);
-    if (!data.userId) {
-      return res.status(400).json({ message: "userId is required" });
-    }
+/* ----------------------------------------
+   CREATE
+----------------------------------------- */
 
-    const doc = await Notification.create(data);
-    return res.status(201).json(doc);
-  } catch (err) {
-    console.error("Create notification error:", err);
-    res.status(500).json({ message: "Failed to create notification" });
-  }
+// POST /api/notifications
+const createNotification = aw(async (req, res) => {
+  const toRaw = pickRecipient(req);
+  const to =
+    toRaw === "me"
+      ? String(req.user?._id || req.user?.id || "")
+      : String(toRaw || "");
+
+  const toEmail =
+    String(
+      req.body?.recipientEmail ||
+        req.body?.toEmail ||
+        req.query?.recipientEmail ||
+        req.query?.email ||
+        ""
+    ).trim();
+
+  if (!to && !toEmail)
+    return res.status(400).json({ message: "Missing recipient id or email" });
+
+
+  const shaped = shapeDocFromBody(req, to);
+
+  // FIX: go through service so email is attempted and emailSent flag recorded
+  const doc = await createNotificationAndMaybeEmail({
+    recipientId: shaped.recipient || undefined,
+    recipientEmail: toEmail || undefined,
+    type: shaped.type,
+    title: shaped.title,
+    message: shaped.message,
+    link: shaped.link,
+    sendEmail: !!shaped.sendEmail,
+    // preserve extras in DB
+    content: shaped.content,
+    pageRelated: shaped.pageRelated,
+    meta: shaped.meta,
+  });
+
+  return res.status(201).json(doc);
 });
+router.post("/", auth, createNotification);
 
-// Convenience “send” route (alias of create)
-router.post("/send", async (req, res) => {
-  try {
-    const me = getUserIdFromReq(req);
-    const data = normalizeIncoming(req.body, me);
-    if (!data.userId) {
-      return res.status(400).json({ message: "userId is required" });
-    }
+// Aliases (reuse same handler)
+router.post(
+  "/send",
+  auth,
+  aw(async (req, res) => {
+    req.body.toUserId = req.body.toUserId || req.body.to;
+    req.body.recipientEmail = req.body.recipientEmail || req.body.toEmail || req.body.email;
+    return createNotification(req, res);
+  })
+);
 
-    const doc = await Notification.create(data);
-    return res.status(201).json(doc);
-  } catch (err) {
-    console.error("Send notification error:", err);
-    res.status(500).json({ message: "Failed to send notification" });
-  }
-});
+router.post(
+  "/users/:userId/notifications",
+  auth,
+  aw(async (req, res) => {
+    req.body.recipientEmail = req.body.recipientEmail || req.body.toEmail || req.body.email;
+     return createNotification(req, res);
+  })
+);
 
-// List current user's notifications
-router.get("/mine", async (req, res) => {
-  try {
-    const me = getUserIdFromReq(req);
-    if (!me) return res.status(200).json([]);
+router.post(
+  "/users/:userId/notify",
+  auth,
+  aw(async (req, res) => {
+    req.body.toUserId = req.params.userId;
+    req.body.recipientEmail = req.body.recipientEmail || req.body.toEmail || req.body.email;
+    return createNotification(req, res);
+  })
+);
 
-    const items = await Notification.find({ userId: me })
+/* ----------------------------------------
+   READ / LIST
+----------------------------------------- */
+
+// GET /api/notifications/mine
+router.get(
+  "/mine",
+  auth,
+  aw(async (req, res) => {
+    const me = String(req.user?._id || req.user?.id || "");
+    const limit = Math.max(
+      1,
+      Math.min(100, parseInt(req.query.limit || "50", 10))
+    );
+    const before = req.query.before ? new Date(req.query.before) : null;
+    const read = boolFromQuery(req.query.read, undefined);
+
+    const query = { recipient: me };
+    if (before && !isNaN(before.getTime())) query.createdAt = { $lt: before };
+    if (typeof read === "boolean") query.read = read;
+
+    const items = await Notification.find(query)
       .sort({ createdAt: -1 })
+      .limit(limit)
       .lean();
-    res.json(items);
-  } catch (err) {
-    console.error("Fetch mine error:", err);
-    res.status(500).json({ message: "Failed to fetch notifications" });
-  }
-});
 
-// Generic list (by userId or ?recipient=me)
-router.get("/", async (req, res) => {
-  try {
-    const { userId, recipient } = req.query;
-    const me = getUserIdFromReq(req);
-    const targetUserId = recipient === "me" ? me : userId;
+    const nextBefore = items.length ? items[items.length - 1].createdAt : null;
 
-    const query = targetUserId ? { userId: targetUserId } : {};
-    const items = await Notification.find(query).sort({ createdAt: -1 }).lean();
-    res.json(items);
-  } catch (err) {
-    console.error("Fetch notifications error:", err);
-    res.status(500).json({ message: "Failed to fetch notifications" });
-  }
-});
+    res.json({ notifications: items, nextBefore });
+  })
+);
 
-// Mark one as read
-router.patch("/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
-    const nowRead = req.body.read === true || req.body.status === "read";
+// GET /api/notifications?recipient=me|<id>&read=true|false&limit=50&before=<ISO>
+router.get(
+  "/",
+  auth,
+  aw(async (req, res) => {
+    const me = String(req.user?._id || req.user?.id || "");
+    let { recipient } = req.query;
 
-    const patch = nowRead
-      ? { status: "read", readAt: new Date() }
-      : { ...(req.body.status ? { status: req.body.status } : {}) };
+    if (!recipient) recipient = "me";
+    const recipientId = recipient === "me" ? me : String(recipient);
 
-    const doc = await Notification.findOneAndUpdate(
-      { $or: [{ _id: id }, { notification_id: id }] },
-      patch,
-      { new: true }
+    const limit = Math.max(
+      1,
+      Math.min(100, parseInt(req.query.limit || "50", 10))
     );
+    const before = req.query.before ? new Date(req.query.before) : null;
+    const read = boolFromQuery(req.query.read, undefined);
+
+    const query = { recipient: recipientId };
+    if (before && !isNaN(before.getTime())) query.createdAt = { $lt: before };
+    if (typeof read === "boolean") query.read = read;
+
+    const items = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    const nextBefore = items.length ? items[items.length - 1].createdAt : null;
+
+    res.json({ notifications: items, nextBefore });
+  })
+);
+
+// GET /api/notifications/unread
+router.get(
+  "/unread",
+  auth,
+  aw(async (req, res) => {
+    const me = String(req.user?._id || req.user?.id || "");
+    const limit = Math.max(
+      1,
+      Math.min(100, parseInt(req.query.limit || "50", 10))
+    );
+    const before = req.query.before ? new Date(req.query.before) : null;
+
+    const query = { recipient: me, read: false };
+    if (before && !isNaN(before.getTime())) query.createdAt = { $lt: before };
+
+    const items = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    const nextBefore = items.length ? items[items.length - 1].createdAt : null;
+
+    res.json({ notifications: items, nextBefore });
+  })
+);
+
+// GET /api/notifications/unread-count
+router.get(
+  "/unread-count",
+  auth,
+  aw(async (req, res) => {
+    const me = String(req.user?._id || req.user?.id || "");
+    const count = await Notification.countDocuments({
+      recipient: me,
+      read: false,
+    });
+    res.json({ count });
+  })
+);
+
+/* ----------------------------------------
+   UPDATE (read flags)
+----------------------------------------- */
+
+// PATCH /api/notifications/:id  { read: true|false }
+router.patch(
+  "/:id",
+  auth,
+  aw(async (req, res) => {
+    const me = String(req.user?._id || req.user?.id || "");
+    const { id } = req.params;
+    if (!isValidId(id))
+      return res.status(400).json({ message: "Invalid notification id" });
+
+    const { read } = req.body;
+    const doc = await Notification.findOneAndUpdate(
+      { _id: id, recipient: me },
+      { $set: { read: !!read } },
+      { new: true }
+    ).lean();
 
     if (!doc) return res.status(404).json({ message: "Not found" });
     res.json(doc);
-  } catch (err) {
-    console.error("Patch notification error:", err);
-    res.status(500).json({ message: "Failed to update notification" });
-  }
-});
+  })
+);
 
-// Mark as read (POST alias)
-router.post("/:id/read", async (req, res) => {
-  try {
-    const id = req.params.id;
-    const doc = await Notification.findOneAndUpdate(
-      { $or: [{ _id: id }, { notification_id: id }] },
-      { status: "read", readAt: new Date() },
-      { new: true }
+// POST /api/notifications/mark-all-read
+// POST /api/notifications/read-all (alias)
+const markAllRead = aw(async (req, res) => {
+  const me = String(req.user?._id || req.user?.id || "");
+  await Notification.updateMany(
+    { recipient: me, read: false },
+    { $set: { read: true } }
+  );
+  res.json({ ok: true });
+});
+router.post("/mark-all-read", auth, markAllRead);
+router.post("/read-all", auth, markAllRead);
+
+// POST /api/notifications/:id/read  (idempotent)
+router.post(
+  "/:id/read",
+  auth,
+  aw(async (req, res) => {
+    const me = String(req.user?._id || req.user?.id || "");
+    const { id } = req.params;
+    if (!isValidId(id))
+      return res.status(400).json({ message: "Invalid notification id" });
+
+    const r = await Notification.updateOne(
+      { _id: id, recipient: me },
+      { $set: { read: true } }
     );
-    if (!doc) return res.status(404).json({ message: "Not found" });
-    res.json(doc);
-  } catch (err) {
-    console.error("Read notification error:", err);
-    res.status(500).json({ message: "Failed to mark as read" });
-  }
-});
+    if (r.matchedCount === 0)
+      return res.status(404).json({ message: "Not found" });
+    res.json({ ok: true });
+  })
+);
 
-// Mark-all read (for current user)
-router.post("/mark-all-read", async (req, res) => {
-  try {
-    const me = getUserIdFromReq(req);
-    if (!me) return res.status(200).json({ updated: 0 });
+/* ----------------------------------------
+   DELETE (optional)
+----------------------------------------- */
 
-    const result = await Notification.updateMany(
-      { userId: me, status: { $ne: "read" } },
-      { $set: { status: "read", readAt: new Date() } }
-    );
-    res.json({ updated: result.modifiedCount || 0 });
-  } catch (err) {
-    console.error("Mark all read error:", err);
-    res.status(500).json({ message: "Failed to mark all as read" });
-  }
-});
+// DELETE /api/notifications/:id
+router.delete(
+  "/:id",
+  auth,
+  aw(async (req, res) => {
+    const me = String(req.user?._id || req.user?.id || "");
+    const { id } = req.params;
+    if (!isValidId(id))
+      return res.status(400).json({ message: "Invalid notification id" });
+
+    const r = await Notification.deleteOne({ _id: id, recipient: me });
+    if (r.deletedCount === 0)
+      return res.status(404).json({ message: "Not found" });
+    res.json({ ok: true });
+  })
+);
 
 module.exports = router;

@@ -247,7 +247,7 @@
 
 /* ---------- Modal ---------- */
 .admin-user-control .modal-overlay {
-  z-index: 1000;
+  z-index: 5100; /* above header so header dims like Course Management */
 }
 .admin-user-control .modal-content {
   border-radius: 12px;

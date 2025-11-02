@@ -1,5 +1,11 @@
 // AdminCourseManagement.jsx
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import { createPortal } from "react-dom";
 import axios from "axios";
 import AdminEditSubjectModal from "./AdminEditSubjectModal";
@@ -16,6 +22,73 @@ import "./AdminCourseManagement.css";
 
 /** ===================== Helpers & Constants ===================== **/
 const TERMS = [1, 2, 3];
+
+/** ===================== Availability helpers ===================== **/
+
+// HH:mm → normalized or null
+const normalizeHHMM = (val) => {
+  if (!val || typeof val !== "string") return null;
+  const m = val.trim().match(/^(\d{1,2}):([0-5]\d)$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mm = Number(m[2]);
+  if (Number.isNaN(h) || Number.isNaN(mm) || h < 0 || h > 23) return null;
+  return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+};
+
+// "HH:mm-HH:mm" → { start, end } or null
+const parseRangeHHMM = (s = "") => {
+  const m = String(s || "").match(
+    /^\s*(\d{1,2}:[0-5]\d)\s*-\s*(\d{1,2}:[0-5]\d)\s*$/
+  );
+  if (!m) return null;
+  const start = normalizeHHMM(m[1]);
+  const end = normalizeHHMM(m[2]);
+  if (!start || !end) return null;
+  const toMin = (t) => {
+    const [hh, mm] = t.split(":").map(Number);
+    return hh * 60 + mm;
+  };
+  if (toMin(end) <= toMin(start)) return null;
+  return { start, end };
+};
+
+// Matches backend convention: MWF → Wed/Fri, TThS → Thu/Sat
+function deriveAllowedDaysFromScheduleDays(daysRaw = "") {
+  const s = String(daysRaw || "").toUpperCase().replace(/\s+/g, "");
+  // normalize "TT" shenanigans to TH
+  const normalized = s
+    .replace(/T{2,}HS/g, "THS")
+    .replace(/T{2,}H/g, "TH")
+    .replace(/TTH/g, "TH");
+  if (normalized.includes("MWF")) return ["Wed", "Fri"];
+  if (normalized.includes("THS")) return ["Thu", "Sat"];
+  if (normalized === "MW") return ["Wed"]; // optional
+  if (normalized === "TF") return ["Fri"]; // optional
+  return [];
+}
+
+function defaultMentoringBlockForSection(section = "") {
+  const c = String(section).trim().toUpperCase();
+  if (c.startsWith("A")) return { start: "07:00", end: "08:15" };
+  if (c.startsWith("H") || c.startsWith("B")) return { start: "13:15", end: "14:30" };
+  if (c.startsWith("S") || c.startsWith("E")) return { start: "18:15", end: "19:30" };
+  return { start: "07:00", end: "08:15" };
+}
+
+// Build the availability payload we POST/PUT (and use to PATCH)
+function buildAvailabilityFromSchedule(schedule = {}, section = "") {
+  const mb =
+    parseRangeHHMM(schedule?.time || "") ||
+    defaultMentoringBlockForSection(section);
+  const allowedDays = deriveAllowedDaysFromScheduleDays(schedule?.days || "");
+  return {
+    mentoringBlock: mb,
+    allowedDays,
+    openDates: [],
+    closedDates: [],
+  };
+}
 
 /** ===================== Page Component ===================== **/
 export default function AdminCourseManagement() {
@@ -50,7 +123,7 @@ export default function AdminCourseManagement() {
 
   const fetchCourses = useCallback(async () => {
     try {
-           const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token");
       if (!token) return;
       const res = await fetch(`${API}/api/courses`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -139,10 +212,17 @@ export default function AdminCourseManagement() {
 
     const isMentorUser = (u) => {
       if (!u) return false;
-      const roleCandidates = [u.role, u.roleName, u.roleId, u.type, u.roles].filter(Boolean);
+      const roleCandidates = [
+        u.role,
+        u.roleName,
+        u.roleId,
+        u.type,
+        u.roles,
+      ].filter(Boolean);
       for (const r of roleCandidates) {
         if (Array.isArray(r)) {
-          if (r.some((x) => String(x).toLowerCase().includes("mentor"))) return true;
+          if (r.some((x) => String(x).toLowerCase().includes("mentor")))
+            return true;
         } else if (String(r).toLowerCase().includes("mentor")) return true;
       }
       if (u.isMentor) return true;
@@ -190,8 +270,11 @@ export default function AdminCourseManagement() {
       filtered = filtered.filter((course) => {
         const derivedMentor =
           course.assignedMentor ||
-          (mentorList.find((m) => m._id === (course.mentorId || course.mentor)) || {})
-            .name;
+          (
+            mentorList.find(
+              (m) => m._id === (course.mentorId || course.mentor)
+            ) || {}
+          ).name;
         return (
           course.courseCode?.toLowerCase().includes(q) ||
           course.courseName?.toLowerCase().includes(q) ||
@@ -204,12 +287,16 @@ export default function AdminCourseManagement() {
 
     // Year
     if (selectedYear) {
-      filtered = filtered.filter((course) => course.schoolYear === selectedYear);
+      filtered = filtered.filter(
+        (course) => course.schoolYear === selectedYear
+      );
     }
 
     // Term
     if (selectedTerm) {
-      filtered = filtered.filter((course) => course.term === parseInt(selectedTerm));
+      filtered = filtered.filter(
+        (course) => course.term === parseInt(selectedTerm)
+      );
     }
 
     // Program
@@ -228,10 +315,16 @@ export default function AdminCourseManagement() {
 
     // Pin recent
     if (recentlyAddedId) {
-      const idx = filtered.findIndex((c) => c._id === recentlyAddedId || c.id === recentlyAddedId);
+      const idx = filtered.findIndex(
+        (c) => c._id === recentlyAddedId || c.id === recentlyAddedId
+      );
       if (idx > 0) {
         const pinned = filtered[idx];
-        filtered = [pinned, ...filtered.slice(0, idx), ...filtered.slice(idx + 1)];
+        filtered = [
+          pinned,
+          ...filtered.slice(0, idx),
+          ...filtered.slice(idx + 1),
+        ];
       }
     }
 
@@ -254,7 +347,8 @@ export default function AdminCourseManagement() {
   // Auto-clear "New" highlight
   useEffect(() => {
     if (recentlyAddedId) {
-      if (recentlyAddedTimerRef.current) clearTimeout(recentlyAddedTimerRef.current);
+      if (recentlyAddedTimerRef.current)
+        clearTimeout(recentlyAddedTimerRef.current);
       recentlyAddedTimerRef.current = setTimeout(() => {
         setRecentlyAddedId(null);
         recentlyAddedTimerRef.current = null;
@@ -340,25 +434,69 @@ export default function AdminCourseManagement() {
         return "IT";
       };
 
+      // Build the base course
+      const schedule = courseData.schedule || {};
+      const section = courseData.section.trim();
+
+      // Build availability from schedule + section
+      const availability = buildAvailabilityFromSchedule(schedule, section);
+
       const newCourse = {
         courseCode,
         courseName,
         yearLevel: parseInt(courseData.courseYear) || 1,
         program: courseData.newSubjectData?.program || inferProgram(courseCode),
         mentor: mentorMatch._id,
-        section: courseData.section.trim(),
+        section,
         academicTerm: academicTerm?._id,
-        schedule: courseData.schedule || {},
+        schedule,
         defaultMeetLink: "",
+        // try to seed via POST (some backends accept)
+        availability,
       };
 
+      const token = localStorage.getItem("token");
+
       const response = await axios.post(`${API}/api/courses`, newCourse, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.data) {
+      const created = response.data;
+      if (created && (created._id || created.id)) {
+        const cid = created._id || created.id;
+
+        // Also PATCH in case POST ignored availability:
+        // 1) mentoring block
+        try {
+          await axios.patch(
+            `${API}/api/courses/${cid}/mentoring`,
+            {
+              start: availability.mentoringBlock.start,
+              end: availability.mentoringBlock.end,
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch (e) {
+          console.warn("Mentoring PATCH failed (create):", e?.response?.data || e?.message);
+        }
+
+        // 2) allowedDays/open/closed dates
+        try {
+          await axios.patch(
+            `${API}/api/courses/${cid}/availability`,
+            {
+              allowedDays: availability.allowedDays,
+              openDates: availability.openDates,
+              closedDates: availability.closedDates,
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch (e) {
+          console.warn("Availability PATCH failed (create):", e?.response?.data || e?.message);
+        }
+
         await refreshData();
-        setRecentlyAddedId(response.data._id);
+        setRecentlyAddedId(cid);
         showToast(
           `${courseData.subject} has been added successfully for ${getSchoolYearLabel(
             academicTerm.schoolYear
@@ -369,7 +507,10 @@ export default function AdminCourseManagement() {
       }
     } catch (error) {
       console.error("Error adding course:", error);
-      showToast(error.response?.data?.message || "Failed to add course", "error");
+      showToast(
+        error.response?.data?.message || "Failed to add course",
+        "error"
+      );
     }
   };
 
@@ -385,18 +526,55 @@ export default function AdminCourseManagement() {
         return;
       }
 
+      const schedule = updatedCourse.schedule || {};
+      const section = updatedCourse.section || "";
+
+      // Keep availability aligned with the schedule
+      const availability = buildAvailabilityFromSchedule(schedule, section);
+
       const updateData = {
         courseCode: updatedCourse.courseCode,
         courseName: updatedCourse.courseName,
         section: updatedCourse.section,
         mentor: mentorMatch._id,
-        schedule: updatedCourse.schedule || {},
+        schedule,
         program: updatedCourse.program,
+        availability, // some backends accept it directly
       };
 
+      const token = localStorage.getItem("token");
+
       await axios.put(`${API}/api/courses/${updatedCourse.id}`, updateData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
+
+      // Also PATCH to guarantee calendars update:
+      try {
+        await axios.patch(
+          `${API}/api/courses/${updatedCourse.id}/mentoring`,
+          {
+            start: availability.mentoringBlock.start,
+            end: availability.mentoringBlock.end,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } catch (e) {
+        console.warn("Mentoring PATCH failed (update):", e?.response?.data || e?.message);
+      }
+
+      try {
+        await axios.patch(
+          `${API}/api/courses/${updatedCourse.id}/availability`,
+          {
+            allowedDays: availability.allowedDays,
+            openDates: availability.openDates,
+            closedDates: availability.closedDates,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } catch (e) {
+        console.warn("Availability PATCH failed (update):", e?.response?.data || e?.message);
+      }
 
       await refreshData();
       setRecentlyAddedId(updatedCourse.id || updatedCourse._id);
@@ -408,7 +586,10 @@ export default function AdminCourseManagement() {
       setEditModalSubject(null);
     } catch (error) {
       console.error("Error updating course:", error);
-      showToast(error.response?.data?.message || "Failed to update course", "error");
+      showToast(
+        error.response?.data?.message || "Failed to update course",
+        "error"
+      );
     }
   };
 
@@ -423,7 +604,10 @@ export default function AdminCourseManagement() {
       showToast("Course has been deleted successfully.", "success");
     } catch (error) {
       console.error("Error deleting course:", error);
-      showToast(error.response?.data?.message || "Failed to delete course", "error");
+      showToast(
+        error.response?.data?.message || "Failed to delete course",
+        "error"
+      );
     }
   };
 
@@ -499,7 +683,10 @@ export default function AdminCourseManagement() {
               {isLoading ? (
                 <div className="stats-grid">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={`stat-skeleton-${i}`} className="stat-card skeleton">
+                    <div
+                      key={`stat-skeleton-${i}`}
+                      className="stat-card skeleton"
+                    >
                       <div className="stat-icon skeleton-icon" />
                       <div className="stat-content">
                         <div className="skeleton-line h-xl w-30 mb-2" />
@@ -513,7 +700,14 @@ export default function AdminCourseManagement() {
                   <div className="stats-grid">
                     <div className="stat-card total accent-purple">
                       <div className="stat-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
                           <rect x="3" y="4" width="18" height="14" rx="2" />
                           <path d="M3 10h18" />
                         </svg>
@@ -526,7 +720,16 @@ export default function AdminCourseManagement() {
 
                     <div className="stat-card students accent-blue">
                       <div className="stat-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <rect x="3" y="4" width="18" height="12" rx="2" />
                           <path d="M8 20h8" />
                           <path d="M12 16v4" />
@@ -534,7 +737,11 @@ export default function AdminCourseManagement() {
                       </div>
                       <div className="stat-content">
                         <div className="stat-number">
-                          {allCourses.filter((c) => (c.program || "").toUpperCase() === "IT").length}
+                          {
+                            allCourses.filter(
+                              (c) => (c.program || "").toUpperCase() === "IT"
+                            ).length
+                          }
                         </div>
                         <div className="stat-label">IT Courses</div>
                       </div>
@@ -542,7 +749,16 @@ export default function AdminCourseManagement() {
 
                     <div className="stat-card mentors accent-green">
                       <div className="stat-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <path d="M21 7h-3V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v2H3v12h18V7z" />
                           <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
                           <path d="M3 13h18" />
@@ -550,7 +766,11 @@ export default function AdminCourseManagement() {
                       </div>
                       <div className="stat-content">
                         <div className="stat-number">
-                          {allCourses.filter((c) => (c.program || "").toUpperCase() === "BA").length}
+                          {
+                            allCourses.filter(
+                              (c) => (c.program || "").toUpperCase() === "BA"
+                            ).length
+                          }
                         </div>
                         <div className="stat-label">BA Courses</div>
                       </div>
@@ -558,7 +778,16 @@ export default function AdminCourseManagement() {
 
                     <div className="stat-card admins accent-amber">
                       <div className="stat-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20" />
                           <path d="M20 2H6.5A2.5 2.5 0 0 0 4 4.5v15" />
                           <path d="M20 22V2" />
@@ -567,13 +796,19 @@ export default function AdminCourseManagement() {
                       </div>
                       <div className="stat-content">
                         <div className="stat-number">
-                          {allCourses.filter((c) => (c.program || "").toUpperCase() === "GE").length}
+                          {
+                            allCourses.filter(
+                              (c) => (c.program || "").toUpperCase() === "GE"
+                            ).length
+                          }
                         </div>
                         <div className="stat-label">GE Courses</div>
                       </div>
                     </div>
                   </div>
-                  <div className="small-muted">Across all academic years and terms.</div>
+                  <div className="small-muted">
+                    Across all academic years and terms.
+                  </div>
                 </>
               )}
             </div>
@@ -583,7 +818,15 @@ export default function AdminCourseManagement() {
               {/* Search Input */}
               <div className="search-container">
                 <div className="search-input-wrapper">
-                  <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    className="search-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <circle cx="11" cy="11" r="8" />
                     <path d="m21 21-4.35-4.35" />
                   </svg>
@@ -595,8 +838,19 @@ export default function AdminCourseManagement() {
                     className="search-input"
                   />
                   {searchQuery && (
-                    <button className="search-clear" onClick={() => setSearchQuery("")} title="Clear search">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <button
+                      className="search-clear"
+                      onClick={() => setSearchQuery("")}
+                      title="Clear search"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <line x1="18" y1="6" x2="6" y2="18" />
                         <line x1="6" y1="6" x2="18" y2="18" />
                       </svg>
@@ -612,13 +866,25 @@ export default function AdminCourseManagement() {
                   onClick={() => setShowFilters(!showFilters)}
                   title={showFilters ? "Hide filters" : "Show filters"}
                 >
-                  <svg className="filter-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    className="filter-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46" />
                   </svg>
                   <span>Filters</span>
                   {(selectedYear || selectedTerm || selectedProgram) && (
                     <span className="filter-badge">
-                      {[selectedYear, selectedTerm, selectedProgram].filter(Boolean).length}
+                      {
+                        [selectedYear, selectedTerm, selectedProgram].filter(
+                          Boolean
+                        ).length
+                      }
                     </span>
                   )}
                 </button>
@@ -712,13 +978,19 @@ export default function AdminCourseManagement() {
                       "Loading courses…"
                     ) : (
                       <>
-                        Showing {startIndex + 1}-{Math.min(endIndex, filteredCourses.length)} of{" "}
-                        {filteredCourses.length} course{filteredCourses.length !== 1 ? "s" : ""}
-                        {selectedYear || selectedTerm || selectedProgram || searchQuery ? (
+                        Showing {startIndex + 1}-
+                        {Math.min(endIndex, filteredCourses.length)} of{" "}
+                        {filteredCourses.length} course
+                        {filteredCourses.length !== 1 ? "s" : ""}
+                        {selectedYear ||
+                        selectedTerm ||
+                        selectedProgram ||
+                        searchQuery ? (
                           <>
                             {" "}
                             (filtered
-                            {selectedYear && ` for ${getSchoolYearLabel(selectedYear)}`}
+                            {selectedYear &&
+                              ` for ${getSchoolYearLabel(selectedYear)}`}
                             {selectedTerm && ` Term ${selectedTerm}`}
                             {selectedProgram && ` Program ${selectedProgram}`}
                             {searchQuery && ` matching "${searchQuery}"`})
@@ -729,7 +1001,13 @@ export default function AdminCourseManagement() {
                       </>
                     )}
                   </span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "1rem",
+                    }}
+                  >
                     {!isLoading && totalPages > 1 && (
                       <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
                         Page {currentPage} of {totalPages}
@@ -740,7 +1018,14 @@ export default function AdminCourseManagement() {
                       className="btn btn-outline-primary"
                       title="Add new course"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <path d="M12 5v14M5 12h14" />
                       </svg>
                       Add Course
@@ -757,18 +1042,34 @@ export default function AdminCourseManagement() {
                           <div className="skeleton-line h-sm w-65 mb-1" />
                           <div className="skeleton-line h-sm w-50" />
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.75rem",
+                          }}
+                        >
                           <div className="skeleton-button" />
                           <div className="skeleton-button" />
                         </div>
                       </div>
                     ))
                   ) : filteredCourses.length === 0 ? (
-                    <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>
+                    <div
+                      style={{
+                        padding: "2rem",
+                        textAlign: "center",
+                        color: "#6b7280",
+                      }}
+                    >
                       No courses found
-                      {selectedYear || selectedTerm || selectedProgram || searchQuery ? (
+                      {selectedYear ||
+                      selectedTerm ||
+                      selectedProgram ||
+                      searchQuery ? (
                         <>
-                          {selectedYear && ` for ${getSchoolYearLabel(selectedYear)}`}
+                          {selectedYear &&
+                            ` for ${getSchoolYearLabel(selectedYear)}`}
                           {selectedTerm && ` Term ${selectedTerm}`}
                           {selectedProgram && ` Program ${selectedProgram}`}
                           {searchQuery && ` matching "${searchQuery}"`}
@@ -781,11 +1082,22 @@ export default function AdminCourseManagement() {
                   ) : (
                     paginatedCourses.map((course, idx) => {
                       const key = course._id || course.id || idx;
-                      const isNew = recentlyAddedId === (course._id || course.id);
+                      const isNew =
+                        recentlyAddedId === (course._id || course.id);
                       return (
-                        <div key={key} className={`user-card ${isNew ? "is-new" : ""}`}>
+                        <div
+                          key={key}
+                          className={`user-card ${isNew ? "is-new" : ""}`}
+                        >
                           <div className="user-info" style={{ flex: 1 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.75rem",
+                                marginBottom: "0.5rem",
+                              }}
+                            >
                               <div
                                 className="user-name"
                                 style={{
@@ -798,44 +1110,89 @@ export default function AdminCourseManagement() {
                                 }}
                               >
                                 {course.courseCode} - {course.courseName}
-                                <span className={`badge program-${course.program}`}>{course.program}</span>
-                                {isNew && <span className="badge new">New</span>}
+                                <span
+                                  className={`badge program-${course.program}`}
+                                >
+                                  {course.program}
+                                </span>
+                                {isNew && (
+                                  <span className="badge new">New</span>
+                                )}
                               </div>
                             </div>
-                            <div style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "0.25rem" }}>
+                            <div
+                              style={{
+                                color: "#64748b",
+                                fontSize: "0.875rem",
+                                marginBottom: "0.25rem",
+                              }}
+                            >
                               Section {course.section} •{" "}
-                              {(
-                                course.assignedMentor ||
-                                (mentorList.find((m) => m._id === (course.mentorId || course.mentor)) || {})
-                                  .name
-                              ) || "Unknown"}
+                              {course.assignedMentor ||
+                                (
+                                  mentorList.find(
+                                    (m) =>
+                                      m._id ===
+                                      (course.mentorId || course.mentor)
+                                  ) || {}
+                                ).name ||
+                                "Unknown"}
                             </div>
 
                             {(() => {
-                              const days = course?.schedule?.days ?? course?.meetingDays ?? "";
-                              const time = course?.schedule?.time ?? course?.meetingTime ?? "";
-                              const slotFromSchedule = course?.schedule?.timeSlot;
-                              const slotFromSection = (course?.section || "")[0];
+                              const days =
+                                course?.schedule?.days ??
+                                course?.meetingDays ??
+                                "";
+                              const time =
+                                course?.schedule?.time ??
+                                course?.meetingTime ??
+                                "";
+                              const slotFromSchedule =
+                                course?.schedule?.timeSlot;
+                              const slotFromSection = (course?.section ||
+                                "")[0];
                               const slot =
                                 slotFromSchedule ||
-                                (["A", "H", "S"].includes(slotFromSection) ? slotFromSection : undefined);
+                                (["A", "H", "S"].includes(slotFromSection)
+                                  ? slotFromSection
+                                  : undefined);
                               const timeStr = formatScheduleTime(time, slot);
 
                               return days || timeStr ? (
-                                <div style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "0.25rem" }}>
+                                <div
+                                  style={{
+                                    color: "#64748b",
+                                    fontSize: "0.875rem",
+                                    marginBottom: "0.25rem",
+                                  }}
+                                >
                                   {days || "---"} • {timeStr || "---"}
                                 </div>
                               ) : null;
                             })()}
 
                             {course.schoolYear && course.term && (
-                              <div style={{ fontSize: "0.875rem", color: "#3b82f6", marginTop: "0.25rem" }}>
-                                {getSchoolYearLabel(course.schoolYear)}, Term {course.term}
+                              <div
+                                style={{
+                                  fontSize: "0.875rem",
+                                  color: "#3b82f6",
+                                  marginTop: "0.25rem",
+                                }}
+                              >
+                                {getSchoolYearLabel(course.schoolYear)}, Term{" "}
+                                {course.term}
                               </div>
                             )}
                           </div>
 
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.75rem",
+                            }}
+                          >
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -844,7 +1201,14 @@ export default function AdminCourseManagement() {
                               className="btn btn-action btn-edit"
                               title="Edit course"
                             >
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
                                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                               </svg>
                               Edit
@@ -861,7 +1225,14 @@ export default function AdminCourseManagement() {
                               className="btn btn-action btn-delete"
                               title="Delete course"
                             >
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
                                 <path d="M3 6h18" />
                                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
                                 <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -880,50 +1251,67 @@ export default function AdminCourseManagement() {
                 {!isLoading && totalPages > 1 && (
                   <div className="pagination">
                     <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                      }
                       disabled={currentPage === 1}
                       className="page-btn"
                     >
                       Previous
                     </button>
 
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => {
-                      const isCurrentPage = pageNumber === currentPage;
-                      const isNearCurrent =
-                        pageNumber === 1 ||
-                        pageNumber === totalPages ||
-                        Math.abs(pageNumber - currentPage) <= 1;
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (pageNumber) => {
+                        const isCurrentPage = pageNumber === currentPage;
+                        const isNearCurrent =
+                          pageNumber === 1 ||
+                          pageNumber === totalPages ||
+                          Math.abs(pageNumber - currentPage) <= 1;
 
-                      if (!isNearCurrent) {
-                        if (pageNumber === 2 && currentPage > 4) {
-                          return (
-                            <span key={`ellipsis-${pageNumber}`} className="ellipsis">
-                              ...
-                            </span>
-                          );
-                        } else if (pageNumber === totalPages - 1 && currentPage < totalPages - 3) {
-                          return (
-                            <span key={`ellipsis-${pageNumber}`} className="ellipsis">
-                              ...
-                            </span>
-                          );
+                        if (!isNearCurrent) {
+                          if (pageNumber === 2 && currentPage > 4) {
+                            return (
+                              <span
+                                key={`ellipsis-${pageNumber}`}
+                                className="ellipsis"
+                              >
+                                ...
+                              </span>
+                            );
+                          } else if (
+                            pageNumber === totalPages - 1 &&
+                            currentPage < totalPages - 3
+                          ) {
+                            return (
+                              <span
+                                key={`ellipsis-${pageNumber}`}
+                                className="ellipsis"
+                              >
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
                         }
-                        return null;
-                      }
 
-                      return (
-                        <button
-                          key={pageNumber}
-                          onClick={() => setCurrentPage(pageNumber)}
-                          className={`page-btn ${isCurrentPage ? "active" : ""}`}
-                        >
-                          {pageNumber}
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={pageNumber}
+                            onClick={() => setCurrentPage(pageNumber)}
+                            className={`page-btn ${
+                              isCurrentPage ? "active" : ""
+                            }`}
+                          >
+                            {pageNumber}
+                          </button>
+                        );
+                      }
+                    )}
 
                     <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                      }
                       disabled={currentPage === totalPages}
                       className="page-btn"
                     >
@@ -960,60 +1348,123 @@ export default function AdminCourseManagement() {
             )}
 
             {/* Delete Confirmation Modal */}
-            {deleteConfirm && (
-              <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
-                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+            {deleteConfirm &&
+              createPortal(
+                <div
+                  className="modal-overlay"
+                  onClick={() => setDeleteConfirm(null)}
+                  style={{ zIndex: 5100 }}
+                >
+                  <div
+                    className="modal-content"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div
                       style={{
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "50%",
-                        background: "#fef2f2",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
+                        gap: "0.75rem",
+                        marginBottom: "1rem",
                       }}
                     >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
-                        <path d="M3 6h18" />
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                      </svg>
+                      <div
+                        style={{
+                          width: "48px",
+                          height: "48px",
+                          borderRadius: "50%",
+                          background: "#fef2f2",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#ef4444"
+                          strokeWidth="2"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3
+                          style={{
+                            margin: 0,
+                            fontSize: "1.125rem",
+                            fontWeight: "600",
+                            color: "#111827",
+                          }}
+                        >
+                          Delete Course
+                        </h3>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: "0.875rem",
+                            color: "#6b7280",
+                          }}
+                        >
+                          This action cannot be undone
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: "600", color: "#111827" }}>
+
+                    <div style={{ marginBottom: "1.5rem" }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          color: "#374151",
+                          fontSize: "0.875rem",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        Are you sure you want to delete this course? This will
+                        permanently remove the course and all associated data.
+                      </p>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.75rem",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <button
+                        onClick={() => setDeleteConfirm(null)}
+                        className="btn btn-ghost"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleDelete(deleteConfirm.id)}
+                        className="btn btn-action btn-delete"
+                      >
                         Delete Course
-                      </h3>
-                      <p style={{ margin: 0, fontSize: "0.875rem", color: "#6b7280" }}>This action cannot be undone</p>
+                      </button>
                     </div>
                   </div>
-
-                  <div style={{ marginBottom: "1.5rem" }}>
-                    <p style={{ margin: 0, color: "#374151", fontSize: "0.875rem", lineHeight: "1.5" }}>
-                      Are you sure you want to delete this course? This will permanently remove the course and all
-                      associated data.
-                    </p>
-                  </div>
-
-                  <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-                    <button onClick={() => setDeleteConfirm(null)} className="btn btn-ghost">
-                      Cancel
-                    </button>
-                    <button onClick={() => handleDelete(deleteConfirm.id)} className="btn btn-action btn-delete">
-                      Delete Course
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+                </div>,
+                document.body
+              )}
 
             {/* Toast */}
             {toast &&
               createPortal(
-                <div key={toast.id} className={`toast ${toast.type}`} role="status" aria-live="polite" aria-atomic="true">
+                <div
+                  key={toast.id}
+                  className={`toast ${toast.type}`}
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
                   {toast.message}
                 </div>,
                 document.body

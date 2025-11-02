@@ -114,7 +114,9 @@ export default function GroupFeedbackModal({
       return;
     }
 
+    // Store studentId in the entry and send a keyed object to parent
     const feedbackEntry = {
+      studentId: selectedStudent.id,
       studentName: selectedStudent.name,
       notes: notes.trim(),
       submittedAt:
@@ -123,14 +125,11 @@ export default function GroupFeedbackModal({
         new Date().toLocaleTimeString(),
     };
 
-    const feedbackData = {
-      studentId: selectedStudent.id,
-      studentName: selectedStudent.name,
-      sessionId: session.id,
-      notes: notes.trim(),
+    const feedbackMap = {
+      [selectedStudent.id]: feedbackEntry,
     };
 
-    onSubmit?.(feedbackData);
+    onSubmit?.(feedbackMap);
 
     const updatedSubmittedFeedback = {
       ...submittedFeedback,

@@ -67,12 +67,6 @@ export default function MobileNav({ activePage }) {
           ariaLabel: "Users",
         },
         {
-          path: "/admin/analytics",
-          label: "Analytics",
-          icon: "📊",
-          ariaLabel: "Analytics",
-        },
-        {
           path: "/admin/courses",
           label: "Courses",
           icon: "📖",

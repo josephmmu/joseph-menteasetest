@@ -82,7 +82,7 @@ export default function ViewFeedbackModal({
         {/* Topic block */}
         <div
           style={{
-            margin: "1.5rem 0 2rem",
+            margin: "1.2rem 0 1rem",
             padding: "0.5rem 0.75rem",
             background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
             borderLeft: `3px solid ${computedAccentColor}`,
@@ -117,7 +117,18 @@ export default function ViewFeedbackModal({
                 marginLeft: "8px",
               }}
             >
-              (Submitted on {feedback.submittedAt})
+              {(() => {
+                const raw = feedback.submittedAt;
+                const d = new Date(raw);
+                const formatted = !Number.isNaN(d.getTime())
+                  ? `${d.toLocaleDateString()} at ${d.toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}`
+                  : String(raw);
+                return `(Submitted on ${formatted})`;
+              })()}
             </span>
           )}
         </label>
@@ -132,10 +143,10 @@ export default function ViewFeedbackModal({
             whiteSpace: "pre-wrap",
             minHeight: "120px",
             boxSizing: "border-box",
-            marginTop: "1rem",
+            marginTop: "0.25rem",
           }}
         >
-          {feedback.mentorComment || feedback.comment || "—"}
+          {feedback.mentorComment || feedback.comment || "-"}
         </div>
 
         {/* Footer close button */}

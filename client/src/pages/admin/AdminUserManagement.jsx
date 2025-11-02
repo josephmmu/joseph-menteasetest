@@ -71,7 +71,10 @@ export default function AdminUserManagement() {
   // Helpers
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+    setTimeout(
+      () => setToast({ show: false, message: "", type: "success" }),
+      3000
+    );
   };
 
   // --- Normalization: ensure admins have no program; drop unknown codes
@@ -128,7 +131,10 @@ export default function AdminUserManagement() {
         throw new Error(errorData.message || "Failed to delete user");
       }
       setAllUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
-      showToast(`${userToDelete.name} has been removed from the system.`, "success");
+      showToast(
+        `${userToDelete.name} has been removed from the system.`,
+        "success"
+      );
     } catch (error) {
       showToast(error.message || "An error occurred.", "error");
     } finally {
@@ -151,7 +157,10 @@ export default function AdminUserManagement() {
     if (!editUser) return;
 
     let programToSend = editProgram;
-    if (editRole !== "admin" && (programToSend === "N/A" || programToSend === "")) {
+    if (
+      editRole !== "admin" &&
+      (programToSend === "N/A" || programToSend === "")
+    ) {
       programToSend = "IT";
     } else if (editRole === "admin") {
       programToSend = null;
@@ -200,7 +209,8 @@ export default function AdminUserManagement() {
   const getFilteredUsers = () => {
     let users = allUsers;
     if (selectedRole) users = users.filter((u) => u.role === selectedRole);
-    if (selectedProgram) users = users.filter((u) => u.program === selectedProgram);
+    if (selectedProgram)
+      users = users.filter((u) => u.program === selectedProgram);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       users = users.filter(
@@ -236,14 +246,18 @@ export default function AdminUserManagement() {
             <div className="section">
               <h2>User Management</h2>
               <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
-                Manage all users in the system. View and filter students, mentors, and administrators.
+                Manage all users in the system. View and filter students,
+                mentors, and administrators.
               </p>
 
               {/* Stats skeleton */}
               <div className="user-stats-section">
                 <div className="stats-grid">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={`stat-skeleton-${i}`} className="stat-card skeleton">
+                    <div
+                      key={`stat-skeleton-${i}`}
+                      className="stat-card skeleton"
+                    >
                       <div className="stat-icon skeleton-icon" />
                       <div className="stat-content">
                         <div className="skeleton-line h-xl w-30 mb-2" />
@@ -279,7 +293,13 @@ export default function AdminUserManagement() {
                           <div className="skeleton-line h-sm w-65 mb-1" />
                           <div className="skeleton-line h-sm w-50" />
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.75rem",
+                          }}
+                        >
                           <div className="skeleton-button" />
                           <div className="skeleton-button" />
                         </div>
@@ -288,7 +308,6 @@ export default function AdminUserManagement() {
                   </div>
                 </div>
               </div>
-
             </div>
           </main>
         </div>
@@ -308,7 +327,8 @@ export default function AdminUserManagement() {
           <div className="section">
             <h2>User Management</h2>
             <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
-              Manage all users in the system. View and filter students, mentors, and administrators.
+              Manage all users in the system. View and filter students, mentors,
+              and administrators.
             </p>
 
             {/* User Statistics */}
@@ -316,7 +336,14 @@ export default function AdminUserManagement() {
               <div className="stats-grid">
                 <div className="stat-card total">
                   <div className="stat-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                       <circle cx="9" cy="7" r="4" />
                       <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -331,13 +358,22 @@ export default function AdminUserManagement() {
 
                 <div className="stat-card students">
                   <div className="stat-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <path d="M22 10v6M2 10l10-5 10 5L12 15z" />
                       <path d="M6 12v5c3 3 9 3 12 0v-5" />
                     </svg>
                   </div>
                   <div className="stat-content">
-                    <div className="stat-number">{allUsers.filter((u) => u.role === "student").length}</div>
+                    <div className="stat-number">
+                      {allUsers.filter((u) => u.role === "student").length}
+                    </div>
                     <div className="stat-label">Students</div>
                   </div>
                 </div>
@@ -345,8 +381,14 @@ export default function AdminUserManagement() {
                 <div className="stat-card mentors">
                   <div className="stat-icon">
                     <svg
-                      width="24" height="24" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       aria-hidden="true"
                     >
                       <path d="M9 18h6" />
@@ -355,7 +397,9 @@ export default function AdminUserManagement() {
                     </svg>
                   </div>
                   <div className="stat-content">
-                    <div className="stat-number">{allUsers.filter((u) => u.role === "mentor").length}</div>
+                    <div className="stat-number">
+                      {allUsers.filter((u) => u.role === "mentor").length}
+                    </div>
                     <div className="stat-label">Mentors</div>
                   </div>
                 </div>
@@ -363,8 +407,14 @@ export default function AdminUserManagement() {
                 <div className="stat-card admins">
                   <div className="stat-icon">
                     <svg
-                      width="28" height="28" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       aria-hidden="true"
                     >
                       <path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z" />
@@ -372,7 +422,9 @@ export default function AdminUserManagement() {
                     </svg>
                   </div>
                   <div className="stat-content">
-                    <div className="stat-number">{allUsers.filter((u) => u.role === "admin").length}</div>
+                    <div className="stat-number">
+                      {allUsers.filter((u) => u.role === "admin").length}
+                    </div>
                     <div className="stat-label">Admins</div>
                   </div>
                 </div>
@@ -383,7 +435,15 @@ export default function AdminUserManagement() {
             <div className="search-filter-bar">
               <div className="search-container">
                 <div className="search-input-wrapper">
-                  <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    className="search-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <circle cx="11" cy="11" r="8" />
                     <path d="m21 21-4.35-4.35" />
                   </svg>
@@ -395,8 +455,19 @@ export default function AdminUserManagement() {
                     className="search-input"
                   />
                   {searchQuery && (
-                    <button className="search-clear" onClick={() => setSearchQuery("")} title="Clear search">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <button
+                      className="search-clear"
+                      onClick={() => setSearchQuery("")}
+                      title="Clear search"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <line x1="18" y1="6" x2="6" y2="18" />
                         <line x1="6" y1="6" x2="18" y2="18" />
                       </svg>
@@ -411,7 +482,15 @@ export default function AdminUserManagement() {
                   onClick={() => setShowFilters(!showFilters)}
                   title={showFilters ? "Hide filters" : "Show filters"}
                 >
-                  <svg className="filter-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    className="filter-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46" />
                   </svg>
                   <span>Filters</span>
@@ -472,7 +551,11 @@ export default function AdminUserManagement() {
                     >
                       <option value="">All Programs</option>
                       {PROGRAMS.map((p) => (
-                        <option key={p} value={p} disabled={selectedRole === "student" && p === "GE"}>
+                        <option
+                          key={p}
+                          value={p}
+                          disabled={selectedRole === "student" && p === "GE"}
+                        >
                           {PROGRAM_LABELS[p]}
                         </option>
                       ))}
@@ -497,8 +580,11 @@ export default function AdminUserManagement() {
                   }}
                 >
                   <span>
-                    Showing {startIndex + 1}-{Math.min(endIndex, filteredUsers.length)} of {filteredUsers.length} users
-                    {filteredUsers.length !== allUsers.length && ` (filtered from ${allUsers.length} total)`}
+                    Showing {startIndex + 1}-
+                    {Math.min(endIndex, filteredUsers.length)} of{" "}
+                    {filteredUsers.length} users
+                    {filteredUsers.length !== allUsers.length &&
+                      ` (filtered from ${allUsers.length} total)`}
                   </span>
                   {totalPages > 1 && (
                     <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
@@ -509,7 +595,13 @@ export default function AdminUserManagement() {
 
                 <div className="user-list">
                   {filteredUsers.length === 0 ? (
-                    <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>
+                    <div
+                      style={{
+                        padding: "2rem",
+                        textAlign: "center",
+                        color: "#6b7280",
+                      }}
+                    >
                       No users found with the current filters.
                     </div>
                   ) : (
@@ -525,13 +617,29 @@ export default function AdminUserManagement() {
                       const getRoleBadgeColor = (role) => {
                         switch (role) {
                           case "student":
-                            return { bg: "#fef3c7", text: "#92400e", border: "#fbbf24" };
+                            return {
+                              bg: "#fef3c7",
+                              text: "#92400e",
+                              border: "#fbbf24",
+                            };
                           case "mentor":
-                            return { bg: "#ecfdf5", text: "#047857", border: "#10b981" };
+                            return {
+                              bg: "#ecfdf5",
+                              text: "#047857",
+                              border: "#10b981",
+                            };
                           case "admin":
-                            return { bg: "#fef2f2", text: "#dc2626", border: "#ef4444" };
+                            return {
+                              bg: "#fef2f2",
+                              text: "#dc2626",
+                              border: "#ef4444",
+                            };
                           default:
-                            return { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0" };
+                            return {
+                              bg: "#f8fafc",
+                              text: "#64748b",
+                              border: "#e2e8f0",
+                            };
                         }
                       };
 
@@ -566,8 +674,22 @@ export default function AdminUserManagement() {
                           }}
                         >
                           <div className="user-info" style={{ flex: 1 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                              <div className="user-name" style={{ fontSize: "1rem", fontWeight: "600", color: "#0f172a" }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.75rem",
+                                marginBottom: "0.5rem",
+                              }}
+                            >
+                              <div
+                                className="user-name"
+                                style={{
+                                  fontSize: "1rem",
+                                  fontWeight: "600",
+                                  color: "#0f172a",
+                                }}
+                              >
                                 {user.name}
                               </div>
                               <div
@@ -586,21 +708,53 @@ export default function AdminUserManagement() {
                               </div>
                             </div>
 
-                            <div className="user-email" style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "0.5rem" }}>
+                            <div
+                              className="user-email"
+                              style={{
+                                color: "#64748b",
+                                fontSize: "0.875rem",
+                                marginBottom: "0.5rem",
+                              }}
+                            >
                               {user.email}
                             </div>
 
-                            <div style={{ display: "flex", gap: "1rem", fontSize: "0.875rem", flexWrap: "wrap" }}>
-                              {user.role !== "admin" && user.program && PROGRAM_LABELS[user.program] && (
-                                <div>
-                                  <span style={{ color: "#64748b", fontWeight: "500" }}>Program: </span>
-                                  <span style={{ color: "#0f172a" }}>{PROGRAM_LABELS[user.program]}</span>
-                                </div>
-                              )}
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "1rem",
+                                fontSize: "0.875rem",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              {user.role !== "admin" &&
+                                user.program &&
+                                PROGRAM_LABELS[user.program] && (
+                                  <div>
+                                    <span
+                                      style={{
+                                        color: "#64748b",
+                                        fontWeight: "500",
+                                      }}
+                                    >
+                                      Program:{" "}
+                                    </span>
+                                    <span style={{ color: "#0f172a" }}>
+                                      {PROGRAM_LABELS[user.program]}
+                                    </span>
+                                  </div>
+                                )}
                             </div>
                           </div>
 
-                          <div style={{ marginLeft: "1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
+                          <div
+                            style={{
+                              marginLeft: "1rem",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "1rem",
+                            }}
+                          >
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -622,14 +776,27 @@ export default function AdminUserManagement() {
                                 transition: "background-color 0.2s ease",
                               }}
                               onMouseEnter={(e) => {
-                                if (!isSelf) e.currentTarget.style.background = "#2563eb";
+                                if (!isSelf)
+                                  e.currentTarget.style.background = "#2563eb";
                               }}
                               onMouseLeave={(e) => {
-                                if (!isSelf) e.currentTarget.style.background = "#3b82f6";
+                                if (!isSelf)
+                                  e.currentTarget.style.background = "#3b82f6";
                               }}
-                              title={isSelf ? "You cannot edit your own account" : "Edit user information"}
+                              title={
+                                isSelf
+                                  ? "You cannot edit your own account"
+                                  : "Edit user information"
+                              }
                             >
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
                                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                               </svg>
                               Edit
@@ -656,14 +823,27 @@ export default function AdminUserManagement() {
                                 transition: "background-color 0.2s ease",
                               }}
                               onMouseEnter={(e) => {
-                                if (!isSelf) e.currentTarget.style.background = "#dc2626";
+                                if (!isSelf)
+                                  e.currentTarget.style.background = "#dc2626";
                               }}
                               onMouseLeave={(e) => {
-                                if (!isSelf) e.currentTarget.style.background = "#ef4444";
+                                if (!isSelf)
+                                  e.currentTarget.style.background = "#ef4444";
                               }}
-                              title={isSelf ? "You cannot delete your own account" : "Delete user"}
+                              title={
+                                isSelf
+                                  ? "You cannot delete your own account"
+                                  : "Delete user"
+                              }
                             >
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
                                 <path d="M3 6h18" />
                                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
                                 <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -717,11 +897,19 @@ export default function AdminUserManagement() {
                     }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = currentPage === 1 ? "#f9fafb" : "white";
+                    e.currentTarget.style.background =
+                      currentPage === 1 ? "#f9fafb" : "white";
                     e.currentTarget.style.borderColor = "#d1d5db";
                   }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M15 18l-6-6 6-6" />
                   </svg>
                   Previous
@@ -732,19 +920,30 @@ export default function AdminUserManagement() {
                     const pageNumber = i + 1;
                     const isCurrentPage = pageNumber === currentPage;
                     const showPage =
-                      pageNumber === 1 || pageNumber === totalPages || Math.abs(pageNumber - currentPage) <= 1;
+                      pageNumber === 1 ||
+                      pageNumber === totalPages ||
+                      Math.abs(pageNumber - currentPage) <= 1;
 
                     if (!showPage) {
                       if (pageNumber === 2 && currentPage > 4) {
                         return (
-                          <span key={pageNumber} style={{ padding: "0.5rem", color: "#9ca3af" }}>
+                          <span
+                            key={pageNumber}
+                            style={{ padding: "0.5rem", color: "#9ca3af" }}
+                          >
                             ...
                           </span>
                         );
                       }
-                      if (pageNumber === totalPages - 1 && currentPage < totalPages - 3) {
+                      if (
+                        pageNumber === totalPages - 1 &&
+                        currentPage < totalPages - 3
+                      ) {
                         return (
-                          <span key={pageNumber} style={{ padding: "0.5rem", color: "#9ca3af" }}>
+                          <span
+                            key={pageNumber}
+                            style={{ padding: "0.5rem", color: "#9ca3af" }}
+                          >
                             ...
                           </span>
                         );
@@ -775,7 +974,9 @@ export default function AdminUserManagement() {
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = isCurrentPage ? "#3b82f6" : "white";
+                          e.currentTarget.style.background = isCurrentPage
+                            ? "#3b82f6"
+                            : "white";
                           e.currentTarget.style.borderColor = "#d1d5db";
                         }}
                       >
@@ -786,15 +987,19 @@ export default function AdminUserManagement() {
                 </div>
 
                 <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
                   disabled={currentPage === totalPages}
                   style={{
                     padding: "0.5rem 0.75rem",
                     border: "1px solid #d1d5db",
                     borderRadius: "6px",
-                    background: currentPage === totalPages ? "#f9fafb" : "white",
+                    background:
+                      currentPage === totalPages ? "#f9fafb" : "white",
                     color: currentPage === totalPages ? "#9ca3af" : "#374151",
-                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
                     fontSize: "0.875rem",
                     fontWeight: "500",
                     display: "flex",
@@ -809,12 +1014,20 @@ export default function AdminUserManagement() {
                     }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = currentPage === totalPages ? "#f9fafb" : "white";
+                    e.currentTarget.style.background =
+                      currentPage === totalPages ? "#f9fafb" : "white";
                     e.currentTarget.style.borderColor = "#d1d5db";
                   }}
                 >
                   Next
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M9 18l6-6-6-6" />
                   </svg>
                 </button>
@@ -822,122 +1035,172 @@ export default function AdminUserManagement() {
             )}
 
             {/* Delete Confirmation Modal */}
-            {deleteConfirm && (
-              <div
-                className="modal-overlay"
-                style={{
-                  position: "fixed",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: "rgba(0, 0, 0, 0.5)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  zIndex: 1000,
-                }}
-              >
+            {deleteConfirm &&
+              createPortal(
                 <div
-                  className="modal-content"
-                  onClick={(e) => e.stopPropagation()}
+                  className="modal-overlay"
                   style={{
-                    background: "white",
-                    borderRadius: "12px",
-                    padding: "1.5rem",
-                    maxWidth: "400px",
-                    width: "90%",
-                    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1000,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+                  <div
+                    className="modal-content"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      background: "white",
+                      borderRadius: "12px",
+                      padding: "1.5rem",
+                      maxWidth: "400px",
+                      width: "90%",
+                      boxShadow:
+                        "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                    }}
+                  >
                     <div
                       style={{
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "50%",
-                        background: "#fef2f2",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
+                        gap: "0.75rem",
+                        marginBottom: "1rem",
                       }}
                     >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
-                        <path d="M3 6h18" />
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                      </svg>
+                      <div
+                        style={{
+                          width: "48px",
+                          height: "48px",
+                          borderRadius: "50%",
+                          background: "#fef2f2",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#ef4444"
+                          strokeWidth="2"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3
+                          style={{
+                            margin: 0,
+                            fontSize: "1.125rem",
+                            fontWeight: "600",
+                            color: "#111827",
+                          }}
+                        >
+                          Delete User
+                        </h3>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: "0.875rem",
+                            color: "#6b7280",
+                          }}
+                        >
+                          This action cannot be undone
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: "600", color: "#111827" }}>
-                        Delete User
-                      </h3>
-                      <p style={{ margin: 0, fontSize: "0.875rem", color: "#6b7280" }}>
-                        This action cannot be undone
+
+                    <div style={{ marginBottom: "1.5rem" }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          color: "#374151",
+                          fontSize: "0.875rem",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        Are you sure you want to delete{" "}
+                        <strong style={{ color: "#111827" }}>
+                          {deleteConfirm.name}
+                        </strong>{" "}
+                        ({deleteConfirm.email})? This will permanently remove
+                        their account and all associated data.
                       </p>
                     </div>
-                  </div>
 
-                  <div style={{ marginBottom: "1.5rem" }}>
-                    <p style={{ margin: 0, color: "#374151", fontSize: "0.875rem", lineHeight: "1.5" }}>
-                      Are you sure you want to delete{" "}
-                      <strong style={{ color: "#111827" }}>{deleteConfirm.name}</strong> ({deleteConfirm.email})?
-                      This will permanently remove their account and all associated data.
-                    </p>
-                  </div>
-
-                  <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-                    <button
-                      onClick={() => setDeleteConfirm(null)}
+                    <div
                       style={{
-                        background: "white",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        padding: "0.5rem 1rem",
-                        fontSize: "0.875rem",
-                        fontWeight: "500",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#f9fafb";
-                        e.currentTarget.style.borderColor = "#9ca3af";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "white";
-                        e.currentTarget.style.borderColor = "#d1d5db";
+                        display: "flex",
+                        gap: "0.75rem",
+                        justifyContent: "flex-end",
                       }}
                     >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUser(deleteConfirm)}
-                      style={{
-                        background: "#ef4444",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "6px",
-                        padding: "0.5rem 1rem",
-                        fontSize: "0.875rem",
-                        fontWeight: "500",
-                        cursor: "pointer",
-                        transition: "background-color 0.2s ease",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "#dc2626")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "#ef4444")}
-                    >
-                      Delete User
-                    </button>
+                      <button
+                        onClick={() => setDeleteConfirm(null)}
+                        style={{
+                          background: "white",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "6px",
+                          padding: "0.5rem 1rem",
+                          fontSize: "0.875rem",
+                          fontWeight: "500",
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#f9fafb";
+                          e.currentTarget.style.borderColor = "#9ca3af";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "white";
+                          e.currentTarget.style.borderColor = "#d1d5db";
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(deleteConfirm)}
+                        style={{
+                          background: "#ef4444",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "6px",
+                          padding: "0.5rem 1rem",
+                          fontSize: "0.875rem",
+                          fontWeight: "500",
+                          cursor: "pointer",
+                          transition: "background-color 0.2s ease",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "#dc2626")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "#ef4444")
+                        }
+                      >
+                        Delete User
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </div>,
+                document.body
+              )}
 
             {/* Edit User Modal */}
-            {editUser && (
+            {editUser && createPortal(
               <div
                 className="modal-overlay"
                 style={{
@@ -950,8 +1213,9 @@ export default function AdminUserManagement() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  zIndex: 1000,
+                  zIndex: 5100,
                 }}
+                onClick={() => setEditUser(null)}
               >
                 <div
                   className="modal-content"
@@ -962,10 +1226,18 @@ export default function AdminUserManagement() {
                     padding: "1.5rem",
                     maxWidth: "500px",
                     width: "90%",
-                    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                    boxShadow:
+                      "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      marginBottom: "1.5rem",
+                    }}
+                  >
                     <div
                       style={{
                         width: "48px",
@@ -977,13 +1249,35 @@ export default function AdminUserManagement() {
                         justifyContent: "center",
                       }}
                     >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                      >
                         <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                       </svg>
                     </div>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: "600", color: "#111827" }}>Edit User</h3>
-                      <p style={{ margin: 0, fontSize: "0.875rem", color: "#6b7280" }}>
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: "1.125rem",
+                          fontWeight: "600",
+                          color: "#111827",
+                        }}
+                      >
+                        Edit User
+                      </h3>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "0.875rem",
+                          color: "#6b7280",
+                        }}
+                      >
                         {editUser.name} ({editUser.email})
                       </p>
                     </div>
@@ -992,7 +1286,13 @@ export default function AdminUserManagement() {
                   <div style={{ marginBottom: "1.5rem" }}>
                     <div style={{ marginBottom: "1rem" }}>
                       <label
-                        style={{ display: "block", fontSize: "0.875rem", fontWeight: "500", color: "#374151", marginBottom: "0.5rem" }}
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: "500",
+                          color: "#374151",
+                          marginBottom: "0.5rem",
+                        }}
                       >
                         Role
                       </label>
@@ -1003,7 +1303,10 @@ export default function AdminUserManagement() {
                           setEditRole(newRole);
                           if (newRole === "admin") {
                             setEditProgram("");
-                          } else if (editProgram === "" || (newRole === "student" && editProgram === "GE")) {
+                          } else if (
+                            editProgram === "" ||
+                            (newRole === "student" && editProgram === "GE")
+                          ) {
                             setEditProgram("IT");
                           }
                         }}
@@ -1027,7 +1330,13 @@ export default function AdminUserManagement() {
 
                     <div style={{ marginBottom: "1rem" }}>
                       <label
-                        style={{ display: "block", fontSize: "0.875rem", fontWeight: "500", color: "#374151", marginBottom: "0.5rem" }}
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: "500",
+                          color: "#374151",
+                          marginBottom: "0.5rem",
+                        }}
                       >
                         Program
                       </label>
@@ -1041,8 +1350,10 @@ export default function AdminUserManagement() {
                           border: "1px solid #d1d5db",
                           borderRadius: "6px",
                           fontSize: "0.875rem",
-                          background: editRole === "admin" ? "#f9fafb" : "white",
-                          cursor: editRole === "admin" ? "not-allowed" : "pointer",
+                          background:
+                            editRole === "admin" ? "#f9fafb" : "white",
+                          cursor:
+                            editRole === "admin" ? "not-allowed" : "pointer",
                           color: editRole === "admin" ? "#9ca3af" : "#000",
                         }}
                       >
@@ -1052,7 +1363,11 @@ export default function AdminUserManagement() {
                           </option>
                         )}
                         {PROGRAMS.map((p) => (
-                          <option key={p} value={p} disabled={editRole === "student" && p === "GE"}>
+                          <option
+                            key={p}
+                            value={p}
+                            disabled={editRole === "student" && p === "GE"}
+                          >
                             {PROGRAM_LABELS[p]}
                           </option>
                         ))}
@@ -1060,7 +1375,13 @@ export default function AdminUserManagement() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.75rem",
+                      justifyContent: "flex-end",
+                    }}
+                  >
                     <button
                       onClick={handleCancelEdit}
                       style={{
@@ -1098,22 +1419,33 @@ export default function AdminUserManagement() {
                         cursor: "pointer",
                         transition: "background-color 0.2s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "#2563eb")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "#3b82f6")}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = "#2563eb")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "#3b82f6")
+                      }
                     >
                       Save Changes
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {toast.show && createPortal(
-              <div className={`toast ${toast.type}`} role="status" aria-live="polite" aria-atomic>
-                {toast.message}
               </div>,
               document.body
             )}
+
+            {toast.show &&
+              createPortal(
+                <div
+                  className={`toast ${toast.type}`}
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic
+                >
+                  {toast.message}
+                </div>,
+                document.body
+              )}
           </div>
         </main>
       </div>

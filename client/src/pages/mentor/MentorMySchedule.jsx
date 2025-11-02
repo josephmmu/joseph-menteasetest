@@ -1,3 +1,4 @@
+// pages/mentor/MentorMySchedule.jsx
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -6,16 +7,13 @@ import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 import MobileNav from "../../components/MobileNav";
 import MentorRescheduleSessionModal from "../../components/RescheduleSessionModal";
-import MentorCancelBookingModal from "../../components/MentorCancelBookingModal";
+import MentorCancelBookingModal from "../../components/CancelBookingModal";
 import SetMeetingLinkModal from "../../components/SetMeetingLinkModal";
 import MentorAvailabilityCalendar from "../../components/MentorAvailabilityCalendar";
 import { useCourseColor } from "../../context/CourseColorContext";
 import { useAuth } from "../../context/AuthContext";
 import { getProgramFromCode, getYearFromSectionDigit, ordinal } from "../../utils/programYear";
 
-/* =========================
-   API helpers / utils
-   ========================= */
 const API = (
   import.meta?.env?.VITE_API_BASE_URL ||
   process.env.REACT_APP_API_URL ||
@@ -67,7 +65,6 @@ const getMentorName = (course) => {
   return m || "—";
 };
 
-/** Normalize any student/participant array into display names */
 const extractStudentNames = (arr) => {
   if (!Array.isArray(arr)) return [];
   return arr
@@ -98,13 +95,11 @@ const extractStudentNames = (arr) => {
     .filter(Boolean);
 };
 
-/* Helper: ensure a proper https:// prefix for external links */
 const ensureHttp = (url) => {
   const u = String(url || "").trim();
   return /^https?:\/\//i.test(u) ? u : `https://${u}`;
 };
 
-/* Date + time range like "28 July 2025 - 8:30 PM–9:00 PM" */
 const formatDateTimeRange = (startISO, endISO, fallbackMinutes = 30) => {
   if (!startISO) return "";
   const start = new Date(startISO);
@@ -129,23 +124,96 @@ const formatDateTimeRange = (startISO, endISO, fallbackMinutes = 30) => {
   return `${dateStr} - ${time(start)}–${time(end)}`;
 };
 
+/* ===== Additional helpers to mirror student side ===== */
+
+/* Humanize ms for feedback ("Starts in 1h 12m") */
+const humanizeMs = (ms) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const parts = [];
+  if (h) parts.push(`${h}h`);
+  if (m || !h) parts.push(`${m}m`);
+  return parts.join(" ");
+};
+
+/* Ensure a Session Note exists and return current text (prefill) */
+const MAX_QS_TEXT = 1600;
+async function ensureSessionNote(session) {
+  try {
+    const body = {
+      sessionId: session.sessionId || session.apiId || session.id || session._id,
+      subject: session.subject,
+      section: session.section,
+      mentorName: session.mentor,
+      dateTimeISO: session.startISO || new Date().toISOString(),
+      topic: session.topic || "",
+    };
+    const res = await fetch(`${API}/api/session-notes/ensure`, {
+      method: "POST",
+      headers: tokenHeaders(),
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("ensure failed");
+    const j = await res.json();
+    const note = j?.note || {};
+    return {
+      topics: String(note.topicsDiscussed || "").slice(0, MAX_QS_TEXT),
+      next: String(note.nextSteps || "").slice(0, MAX_QS_TEXT),
+    };
+  } catch (e) {
+    console.warn("[ensureSessionNote] Continuing without prefill:", e?.message);
+    return { topics: "", next: "" };
+  }
+}
+
+const pickApiId = (s) => s?._id || s?.id || s?.sessionId || null;
+const toLower = (x) => String(x || "").toLowerCase().trim();
+
+function StatusBadge({ kind, reason }) {
+  const [open, setOpen] = useState(false);
+  const label = kind === "cancelled" ? "Cancelled" : "Rescheduled";
+  const hasReason = Boolean(reason && String(reason).trim());
+
+  return (
+    <span
+      className={`status-badge ${kind}`}
+      tabIndex={hasReason ? 0 : -1}
+      aria-haspopup={hasReason ? "true" : undefined}
+      aria-label={hasReason ? `${label}. Why? ${reason}` : label}
+      data-open={open && hasReason ? "true" : "false"}
+      onClick={(e) => {
+        if (!hasReason) return;
+        e.stopPropagation();
+        setOpen((v) => !v);
+      }}
+      onBlur={() => setOpen(false)}
+    >
+      {label}
+      {hasReason && (
+        <span className="status-tip" role="tooltip">
+          <strong className="status-tip__title">Why?</strong>
+          <span className="status-tip__body">{reason}</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
 export default function MentorMySchedule() {
-  /* ====================== Auth, theme, nav ====================== */
   const { user } = useAuth();
   const { getYearColor, normalizeCourseKey } = useCourseColor();
   const navigate = useNavigate();
 
-  /* ====================== UI State ====================== */
   const [activeTab, setActiveTab] = useState("upcoming");
 
-  // ===== Toast (same as MySchedule: single, portaled) =====
-  const [toast, setToast] = useState(null); // { id, type, message }
+  const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
   const toastRafRef = useRef(0);
 
   const showToast = useCallback((message, type = "success", stayMs = 3000) => {
     if (!message) return;
-
     if (toastTimerRef.current) {
       clearTimeout(toastTimerRef.current);
       toastTimerRef.current = null;
@@ -154,7 +222,6 @@ export default function MentorMySchedule() {
       cancelAnimationFrame(toastRafRef.current);
       toastRafRef.current = 0;
     }
-
     setToast((t) => (t ? { ...t, message: "" } : { id: null, type, message: "" }));
     toastRafRef.current = requestAnimationFrame(() => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -179,24 +246,20 @@ export default function MentorMySchedule() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [showCancel, setShowCancel] = useState(false);
 
-  // Meeting links (server-backed; localStorage fallback)
   const [meetingLinks, setMeetingLinks] = useState({});
   const [showSetLink, setShowSetLink] = useState(false);
 
-  // ✅ Recording link modal (server-backed, per-session)
   const [showSetRecordingLink, setShowSetRecordingLink] = useState(false);
-  const [selectedRecordingTarget, setSelectedRecordingTarget] = useState(null); // { sessionId, subject, section, link }
+  const [selectedRecordingTarget, setSelectedRecordingTarget] = useState(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null); // { sessionId, subject, section }
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null);
 
-  // Unified Manage menu + panels
   const [showManageMenu, setShowManageMenu] = useState(false);
   const manageWrapRef = useRef(null);
   const [showManageLinks, setShowManageLinks] = useState(false);
   const [manageSearch, setManageSearch] = useState("");
   const [showManageAvailability, setShowManageAvailability] = useState(false);
 
-  /* ====================== Window + outside click ====================== */
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
@@ -217,7 +280,6 @@ export default function MentorMySchedule() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuIndex]);
-
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") {
@@ -230,7 +292,6 @@ export default function MentorMySchedule() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  /* ====================== Local storage hydration (course meeting links only) ====================== */
   useEffect(() => {
     try {
       const raw = localStorage.getItem("meetingLinks");
@@ -240,11 +301,10 @@ export default function MentorMySchedule() {
     }
   }, []);
 
-  /* ====================== Courses (DB) ====================== */
   const [dbCourses, setDbCourses] = useState([]);
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const [coursesError, setCoursesError] = useState("");
-  const [pairToCourse, setPairToCourse] = useState({}); // "SUBJECT__SECTION" -> courseId
+  const [pairToCourse, setPairToCourse] = useState({});
 
   const meId = String(user?._id || user?.id || "").trim();
   const meName = String(user?.name || "").toLowerCase().trim();
@@ -277,7 +337,7 @@ export default function MentorMySchedule() {
     section: c?.section || "",
     defaultMeetLink: c?.defaultMeetLink || "",
     scheduleDaysStr: (c?.schedule?.days || "").toUpperCase().trim(),
-    scheduleTimeStr: (c?.schedule?.time || "").trim(), // ✅ NEW
+    scheduleTimeStr: (c?.schedule?.time || "").trim(),
     mentorId:
       typeof c?.mentorId === "object" && c?.mentorId?._id
         ? String(c.mentorId._id)
@@ -293,7 +353,6 @@ export default function MentorMySchedule() {
     setIsLoadingCourses(true);
     setCoursesError("");
     try {
-      // Prefer server endpoint filtered by logged mentor.
       let res = await fetch(`${API}/api/courses/mine`, {
         headers: tokenHeaders(),
         credentials: "include",
@@ -303,7 +362,6 @@ export default function MentorMySchedule() {
         const data = await res.json();
         list = pickArray(data);
       } else {
-        // Fallback: fetch all then filter locally.
         res = await fetch(`${API}/api/courses`, {
           headers: tokenHeaders(),
           credentials: "include",
@@ -316,26 +374,21 @@ export default function MentorMySchedule() {
       const norm = list.map(normalizeCourse);
       setDbCourses(norm);
 
-      // Build pair->courseId and server-provided meeting links
       const nextPair = {};
       const serverLinks = {};
       norm.forEach((c) => {
         const subject = `${c.courseCode} ${c.courseName}`.trim();
         const key = `${subject}__${c.section}`;
         nextPair[key] = c._id;
-        if (c.defaultMeetLink) serverLinks[key] = c.defaultMeetLink; // ✅ fix: use key, not k
+        if (c.defaultMeetLink) serverLinks[key] = c.defaultMeetLink;
       });
       setPairToCourse(nextPair);
 
-      // Merge with pruning: for any loaded pair, remove stale cached link if server has none
       setMeetingLinks((prev) => {
         const next = { ...prev };
         Object.keys(nextPair).forEach((k) => {
-          if (serverLinks[k]) {
-            next[k] = ensureHttp(serverLinks[k]);
-          } else {
-            delete next[k];
-          }
+          if (serverLinks[k]) next[k] = ensureHttp(serverLinks[k]);
+          else delete next[k];
         });
         try {
           localStorage.setItem("meetingLinks", JSON.stringify(next));
@@ -357,14 +410,12 @@ export default function MentorMySchedule() {
     loadCourses();
   }, [loadCourses]);
 
-  /* ====================== Sessions (DB) ====================== */
   const [rawSessions, setRawSessions] = useState([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
 
   const fetchSessions = useCallback(async () => {
     setSessionsLoading(true);
     try {
-      // Backend returns sessions where the user is mentor/creator/participant
       const res = await fetch(`${API}/api/sessions/mine?as=mentor`, {
         headers: tokenHeaders(),
         credentials: "include",
@@ -387,24 +438,13 @@ export default function MentorMySchedule() {
     fetchSessions();
   }, [fetchSessions]);
 
-  /* ====================== Helpers for schedule list ====================== */
-  const dateKey = (d) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-  const isTodayTs = (ts) => {
-    if (!ts || Number.isNaN(ts)) return false;
-    const d = new Date(ts);
-    const now = new Date();
-    return dateKey(d) === dateKey(now);
-  };
-
+  const { getYearColor: _getYearColor, normalizeCourseKey: _normalizeCourseKey } = useCourseColor();
   const accentVarsFor = (subject, section) => {
-    const key = normalizeCourseKey(`${subject || ""} ${section || ""}`);
-    const accent = getYearColor(key);
+    const key = _normalizeCourseKey(`${subject || ""} ${section || ""}`);
+    const accent = _getYearColor(key);
     return { "--accent": accent, "--accentRing": "rgba(0,0,0,0.08)" };
   };
 
-  // Build a map of course by id for quick lookups
   const courseById = useMemo(() => {
     const m = new Map();
     (dbCourses || []).forEach((c) => {
@@ -413,7 +453,6 @@ export default function MentorMySchedule() {
     return m;
   }, [dbCourses]);
 
-  // Derive normalized sessions into the UI model the page expects
   const normalizedSessions = useMemo(() => {
     const list = [];
     (rawSessions || []).forEach((s) => {
@@ -434,7 +473,6 @@ export default function MentorMySchedule() {
 
       const duration = start && end ? Math.max(0, Math.round((end - start) / (60 * 1000))) : 30;
 
-      // compute END timestamp with safe fallback (start + duration)
       const endTs =
         end && !Number.isNaN(end.getTime())
           ? end.getTime()
@@ -443,7 +481,10 @@ export default function MentorMySchedule() {
           : NaN;
 
       const meetLink =
-        s.meetLink || meetingLinks[`${subject}__${section}`] || course?.defaultMeetLink || "";
+        s.meetLink ||
+        (subject && section ? (meetingLinks[`${subject}__${section}`] || "") : "") ||
+        course?.defaultMeetLink ||
+        "";
 
       const rawStudents =
         s.students || s.participants || s.attendees || s.members || s.group || s.groupMembers || [];
@@ -463,13 +504,54 @@ export default function MentorMySchedule() {
         studentNames.length > 1 ||
         (fromMembersOnly && studentNames.length >= 1);
 
+      const apiId = pickApiId(s);
+
+      const rolesLower = [
+        ...(Array.isArray(user?.roles) ? user.roles : user?.roles ? [user.roles] : []),
+        user?.role,
+      ]
+        .filter(Boolean)
+        .map(toLower);
+
+      const isAdminLike = rolesLower.some((r) =>
+        ["admin", "administrator", "coordinator", "staff", "mentor_admin"].includes(r)
+      );
+
+      const sMentorId = toIdString(s.mentor?._id ?? s.mentorId ?? s.mentor);
+      const sCreatorId = toIdString(s.createdBy ?? s.createdById ?? s.creatorId ?? s.owner ?? s.ownerId ?? s.hostId);
+      const courseMentorId = toIdString(course?.mentorId ?? course?.mentor?._id);
+      const myId = String(user?._id || user?.id || "").trim();
+
+      const canEdit =
+        Boolean(myId) &&
+        (isAdminLike || [sMentorId, sCreatorId, courseMentorId].some((x) => x && x === myId));
+
+      const statusLower = String(s.status || "").toLowerCase().trim();
+      const cancelReason =
+        s.cancellationReason ||
+        s.cancelReason ||
+        s.cancel_note ||
+        s.cancelNote ||
+        s.meta?.cancelReason ||
+        (statusLower === "cancelled" ? s.reason : "") ||
+        "";
+      const rescheduleReason =
+        s.rescheduleReason ||
+        s.rescheduledReason ||
+        s.reschedule_note ||
+        s.rescheduleNote ||
+        s.meta?.rescheduleReason ||
+        (statusLower === "rescheduled" ? s.reason : "") ||
+        "";
+
       list.push({
-        id: s.sessionId || s._id || `${courseId}-${startISO}`,
+        id: apiId || `${courseId || "noCourse"}-${startISO || "noStart"}`,
+        apiId,
         date: display,
         startISO,
         endISO,
         _startTs: start ? start.getTime() : NaN,
-        _endTs: endTs, // <-- used for Upcoming/Past classification (END time)
+        _endTs: Number.isNaN(endTs) && start ? start.getTime() + duration * 60 * 1000 : endTs,
         subject,
         section,
         mentor,
@@ -480,12 +562,14 @@ export default function MentorMySchedule() {
         meetLink,
         students: studentNames,
         isGroup,
+        canEdit,
+        cancelReason,
+        rescheduleReason,
       });
     });
     return list;
-  }, [rawSessions, courseById, meetingLinks]);
+  }, [rawSessions, courseById, meetingLinks, user?._id, user?.id, user?.role, user?.roles]);
 
-  // Split into upcoming/past:
   const { upcomingSorted, pastSorted } = useMemo(() => {
     const now = Date.now();
     const upcoming = [];
@@ -504,15 +588,12 @@ export default function MentorMySchedule() {
       else past.push(x);
     });
 
-    // Upcoming: soonest first (by start time)
     upcoming.sort((a, b) => (a._startTs || 0) - (b._startTs || 0));
-    // Past: most recently finished first (by end time)
     past.sort((a, b) => (b._endTs || 0) - (a._endTs || 0));
 
     return { upcomingSorted: upcoming, pastSorted: past };
   }, [normalizedSessions]);
 
-  /* ====================== Pagination (mentor) ====================== */
   const [pageUpcoming, setPageUpcoming] = useState(1);
   const [pagePast, setPagePast] = useState(1);
   const perPage = 6;
@@ -545,20 +626,17 @@ export default function MentorMySchedule() {
 
   const anyLoading = isLoadingCourses || sessionsLoading;
 
-  /* ====================== live highlight tick (15s) ====================== */
   const [nowTs, setNowTs] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNowTs(Date.now()), 15000);
     return () => clearInterval(id);
   }, []);
 
-  /* ====================== Meeting link save/clear (DB first) ====================== */
   const handleSaveLink = async (subject, section, link) => {
     const key = `${subject}__${section}`;
     const cid = pairToCourse[key];
     const trimmed = (link || "").trim();
 
-    // CLEAR case
     if (!trimmed) {
       if (cid) {
         try {
@@ -584,7 +662,6 @@ export default function MentorMySchedule() {
       return;
     }
 
-    // SAVE/UPDATE case
     const finalLink = ensureHttp(trimmed);
     if (!finalLink.startsWith("https://meet.google.com/")) {
       showToast("⚠️ Please enter a valid Google Meet link.", "error");
@@ -605,7 +682,6 @@ export default function MentorMySchedule() {
         return;
       }
     } else {
-      // Local fallback if no course id
       try {
         const raw = localStorage.getItem("meetingLinks");
         const obj = raw ? JSON.parse(raw) : {};
@@ -624,10 +700,9 @@ export default function MentorMySchedule() {
     showToast("✅ Meeting link saved.", "success");
   };
 
-  /* ====================== Recording links (server-backed, per-session) ====================== */
   const openSetRecordingLinkModal = (session) => {
     setSelectedRecordingTarget({
-      sessionId: session.id || session.sessionId,
+      sessionId: session.apiId || session.id,
       subject: session.subject,
       section: session.section,
       link: session.recordingUrl || "",
@@ -638,7 +713,7 @@ export default function MentorMySchedule() {
   const handleSaveRecordingLink = async (sessionId, link) => {
     const final = ensureHttp((link || "").trim());
     try {
-      const res = await fetch(`${API}/api/sessions/${sessionId}/recording`, {
+      const res = await fetch(`${API}/api/sessions/${sessionId}/recording?as=mentor`, {
         method: "PATCH",
         headers: tokenHeaders(),
         credentials: "include",
@@ -655,7 +730,7 @@ export default function MentorMySchedule() {
 
   const handleRemoveRecordingLink = async (sessionId) => {
     try {
-      const res = await fetch(`${API}/api/sessions/${sessionId}/recording`, {
+      const res = await fetch(`${API}/api/sessions/${sessionId}/recording?as=mentor`, {
         method: "PATCH",
         headers: tokenHeaders(),
         credentials: "include",
@@ -670,16 +745,13 @@ export default function MentorMySchedule() {
     }
   };
 
-  /* ====================== Subject–Section list for Manage panels ====================== */
-
-  // Local parser identical to the calendar's rules (WF => Wed/Fri; TTHS => Thu/Sat)
   const parseDays = (raw = "") => {
     let s = String(raw).toUpperCase().replace(/\s+/g, "");
     s = s.replace(/T{2,}HS/g, "THS").replace(/T{2,}H/g, "TH");
     const out = [];
     for (let i = 0; i < s.length; ) {
       if (s.startsWith("TH", i)) {
-        out.push(4); // Thu
+        out.push(4);
         i += 2;
         continue;
       }
@@ -697,7 +769,7 @@ export default function MentorMySchedule() {
         const subject = `${c.courseCode} ${c.courseName}`.trim();
         const section = c.section || "";
         const daysStr = c.scheduleDaysStr || "";
-        const timeStr = c.scheduleTimeStr || ""; // ✅ pass schedule.time
+        const timeStr = c.scheduleTimeStr || "";
         return {
           subject,
           section,
@@ -714,7 +786,6 @@ export default function MentorMySchedule() {
       );
     }
 
-    // fallback to what we see in sessions
     const all = [...normalizedSessions];
     const map = new Map();
     all.forEach((s) => {
@@ -745,18 +816,64 @@ export default function MentorMySchedule() {
     [manageSearch, subjectSectionPairs]
   );
 
-  /* ====================== Row helpers ====================== */
-  const formatStudentDisplay = (students, isSchedulePage = false) => {
-    if (!students || students.length === 0) return "No students";
-    if (students.length === 1) return `Student: ${students[0]}`;
-    return isSchedulePage ? `Students: ${students.join(", ")}` : `Students: ${students[0]}, ${students.length - 1}+`;
-  };
+  const cancelWithFallback = useCallback(async (id, reason) => {
+    const attempts = [
+      {
+        url: `${API}/api/sessions/${id}?${new URLSearchParams({ reason, as: "mentor" }).toString()}`,
+        options: { method: "DELETE", headers: tokenHeaders(), credentials: "include" },
+      },
+      {
+        url: `${API}/api/sessions/${id}/cancel`,
+        options: {
+          method: "POST",
+          headers: tokenHeaders(),
+          credentials: "include",
+          body: JSON.stringify({ reason, as: "mentor" }),
+        },
+      },
+      {
+        url: `${API}/api/sessions/${id}`,
+        options: {
+          method: "PATCH",
+          headers: tokenHeaders(),
+          credentials: "include",
+          body: JSON.stringify({ status: "cancelled", cancelReason: reason, as: "mentor" }),
+        },
+      },
+    ];
 
-  /* ====================== Reschedule / Cancel (DB) ====================== */
+    let lastMsg = "Failed to cancel session.";
+    for (const step of attempts) {
+      try {
+        const res = await fetch(step.url, step.options);
+        if (res.ok) return { ok: true };
+        if (res.status === 401 || res.status === 403) {
+          return { ok: false, msg: "You're not allowed to edit this session." };
+        }
+        const ct = res.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const j = await res.json().catch(() => null);
+          if (j?.message) lastMsg = j.message;
+          else if (j?.error) lastMsg = j.error;
+        } else {
+          const t = await res.text().catch(() => "");
+          if (t) lastMsg = t;
+        }
+      } catch (e) {
+        lastMsg = e?.message || lastMsg;
+      }
+    }
+    return { ok: false, msg: lastMsg };
+  }, []);
+
   const handleReschedule = useCallback(
     async (payload) => {
       try {
-        // NEW: guard — new start must be at least 24h from now
+        if (!selectedSession?.canEdit) {
+          showToast("You're not allowed to edit this session.", "error");
+          return false;
+        }
+
         const MIN_LEAD_MS = 24 * 60 * 60 * 1000;
         const newStartMs = new Date(payload?.startISO || "").getTime();
         if (!Number.isFinite(newStartMs)) {
@@ -768,10 +885,13 @@ export default function MentorMySchedule() {
           return false;
         }
 
-        const id = selectedSession?.sessionId || selectedSession?.id || selectedSession?._id;
-        if (!id) return false;
+        const id = selectedSession?.apiId;
+        if (!id) {
+          showToast("This session can't be modified (missing server id).", "error");
+          return false;
+        }
 
-        const res = await fetch(`${API}/api/sessions/${id}`, {
+        const res = await fetch(`${API}/api/sessions/${id}?as=mentor`, {
           method: "PATCH",
           headers: tokenHeaders(),
           credentials: "include",
@@ -785,7 +905,15 @@ export default function MentorMySchedule() {
         });
 
         if (!res.ok) {
-          showToast("Failed to reschedule.", "error");
+          let msg = "Failed to reschedule.";
+          if (res.status === 401 || res.status === 403) msg = "You're not allowed to edit this session.";
+          else {
+            try {
+              const j = await res.json();
+              if (j?.message) msg = j.message;
+            } catch {}
+          }
+          showToast(msg, "error");
           return false;
         }
 
@@ -804,8 +932,16 @@ export default function MentorMySchedule() {
   const handleCancel = useCallback(
     async (payload) => {
       try {
-        const id = selectedSession?.sessionId || selectedSession?.id || selectedSession?._id;
-        if (!id) return false;
+        if (!selectedSession?.canEdit) {
+          showToast("You're not allowed to edit this session.", "error");
+          return false;
+        }
+
+        const id = selectedSession?.apiId;
+        if (!id) {
+          showToast("This session can't be modified (missing server id).", "error");
+          return false;
+        }
 
         const status = (selectedSession?.status || "").trim().toLowerCase();
         if (status === "cancelled") {
@@ -813,28 +949,18 @@ export default function MentorMySchedule() {
           return false;
         }
 
-        // 24h rule
-        const msUntil =
-          (typeof selectedSession?._startTs === "number" ? selectedSession._startTs : NaN) - Date.now();
-        if (!Number.isFinite(msUntil) || msUntil < 24 * 60 * 60 * 1000) {
-          showToast("Cancellations must be made at least 24 hours prior to the scheduled session.", "error");
-          return false;
+        const startTs = selectedSession?._startTs;
+        if (Number.isFinite(startTs)) {
+          const msUntil = startTs - Date.now();
+          if (msUntil < 24 * 60 * 60 * 1000) {
+            showToast("Cancellations must be made at least 24 hours prior to the scheduled session.", "error");
+            return false;
+          }
         }
 
-        const reason = encodeURIComponent(payload?.reason || "");
-        const res = await fetch(`${API}/api/sessions/${id}?reason=${reason}`, {
-          method: "DELETE",
-          headers: tokenHeaders(),
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          let msg = "Failed to cancel session.";
-          try {
-            const j = await res.json();
-            if (j?.message) msg = j.message;
-          } catch {}
-          showToast(msg, "error");
+        const result = await cancelWithFallback(id, payload?.reason || "");
+        if (!result.ok) {
+          showToast(result.msg || "Failed to cancel session.", "error");
           return false;
         }
 
@@ -842,19 +968,40 @@ export default function MentorMySchedule() {
         showToast("Booking cancelled.", "success");
         return true;
       } catch (e) {
-        console.error("Cancel DELETE failed:", e);
+        console.error("Cancel failed:", e);
         showToast("Network error while cancelling.", "error");
         return false;
       }
     },
-    [selectedSession, fetchSessions, showToast]
+    [selectedSession, fetchSessions, showToast, cancelWithFallback]
   );
 
-  /* ====================== Render ====================== */
+  const getPaginationItems = (current, total) => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const base = [];
+    for (let i = 1; i <= total; i++) {
+      if (i === 1 || i === total || Math.abs(i - current) <= 1) base.push(i);
+    }
+    const items = [];
+    let prev = 0;
+    for (const p of base) {
+      if (prev) {
+        const gap = p - prev;
+        if (gap === 2) {
+          items.push(prev + 1);
+        } else if (gap > 2) {
+          items.push("...");
+        }
+      }
+      items.push(p);
+      prev = p;
+    }
+    return items;
+  };
+
   return (
     <div className="page-wrapper">
       <Header isMobile={isMobile} />
-
       {isMobile && <MobileNav />}
 
       <div className="main-layout">
@@ -904,7 +1051,7 @@ export default function MentorMySchedule() {
                   </button>
                 </div>
 
-                {/* Manage Meeting Links (DB-backed) */}
+                {/* Manage Meeting Links */}
                 <div className={`manage-links-menu ${showManageLinks ? "show" : ""}`} role="menu">
                   <div className="manage-menu-head">
                     <div className="manage-menu-title">Manage Meeting Links</div>
@@ -1012,13 +1159,14 @@ export default function MentorMySchedule() {
                   const vars = accentVarsFor(session.subject, session.section);
                   const pairKey = `${session.subject}__${session.section}`;
 
-                  // live highlight (only during exact start–end window)
                   const live =
                     activeTab === "upcoming" &&
                     Number.isFinite(session._startTs) &&
                     Number.isFinite(session._endTs) &&
                     nowTs >= session._startTs &&
                     nowTs < session._endTs;
+
+                  const canJoin = live;
 
                   const program = getProgramFromCode(session.subject, normalizeCourseKey);
                   const yrNum = getYearFromSectionDigit(session.section);
@@ -1027,6 +1175,7 @@ export default function MentorMySchedule() {
                   const recordingUrl = (session.recordingUrl || "").trim();
                   const hasRecordingLink = !!recordingUrl;
                   const isCancelled = (session.status || "").toLowerCase() === "cancelled";
+                  const isRescheduled = (session.status || "").toLowerCase() === "rescheduled";
 
                   return (
                     <div
@@ -1041,27 +1190,21 @@ export default function MentorMySchedule() {
                       <div className="schedule-info">
                         <p className="date">
                           {session.date}
-                          {(session.status || "").toLowerCase() === "cancelled" && (
-                            <span className="status-badge cancelled" title="This session was cancelled">
-                              Cancelled
-                            </span>
-                          )}
-                          {(session.status || "").toLowerCase() === "rescheduled" && (
-                            <span className="status-badge rescheduled" title="This session was rescheduled">
-                              Rescheduled
-                            </span>
-                          )}
-                          {session.isGroup && (
-                            <>
-                              {" "}
-                              <span className="session-type-inline">(Group)</span>
-                            </>
-                          )}
+                          {session.isGroup && <> <span className="session-type-inline">(Group)</span></>}
+                          {isCancelled && <StatusBadge kind="cancelled" reason={session.cancelReason} />}
+                          {isRescheduled && <StatusBadge kind="rescheduled" reason={session.rescheduleReason} />}
                         </p>
                         <p className="subject">
                           {session.subject} - {session.section}
                         </p>
-                        <p className="mentor">{formatStudentDisplay(session.students, true)}</p>
+                        <p className="mentor">
+                          {(() => {
+                            const students = session.students;
+                            if (!students || students.length === 0) return "No students";
+                            if (students.length === 1) return `Student: ${students[0]}`;
+                            return `Students: ${students.join(", ")}`;
+                          })()}
+                        </p>
 
                         <div className="bottom-row">
                           <div className="topic">Topic: {session.topic}</div>
@@ -1070,27 +1213,69 @@ export default function MentorMySchedule() {
                             {activeTab === "upcoming" ? (
                               <>
                                 <button
-                                  className="join-btn"
-                                  onClick={() => {
-                                    const url = session.meetLink || meetingLinks[pairKey] || "";
-                                    if (!url) {
+                                  className="join-btn status-badge"
+                                  data-disabled={!canJoin}
+                                  title={canJoin ? "Join meeting" : undefined}
+                                  tabIndex={0}
+                                  aria-haspopup={!canJoin ? "true" : undefined}
+                                  aria-label={
+                                    !canJoin
+                                      ? (() => {
+                                          const hasTimes =
+                                            Number.isFinite(session._startTs) && Number.isFinite(session._endTs);
+                                          if (!hasTimes) return "When can I join? Schedule time missing.";
+                                          let msg = `When can I join? Available only ${formatDateTimeRange(session.startISO, session.endISO)}`;
+                                          if (nowTs < session._startTs) msg += ` • Starts in ${humanizeMs(session._startTs - nowTs)}`;
+                                          else if (nowTs >= session._endTs) msg += " • Ended";
+                                          return msg;
+                                        })()
+                                      : "JOIN NOW"
+                                  }
+                                  onClick={async () => {
+                                    // Same hard-guards as student side
+                                    if (!Number.isFinite(session._startTs) || !Number.isFinite(session._endTs)) {
+                                      showToast("Schedule time is missing. Please contact your coordinator.", "error", 4200);
+                                      return;
+                                    }
+                                    if (nowTs < session._startTs) {
+                                      // Too early — bubble explains timing; no toast
+                                      return;
+                                    }
+                                    if (nowTs >= session._endTs) {
+                                      showToast("This session has already ended.", "error", 4200);
+                                      return;
+                                    }
+
+                                    const rawUrl = (session.meetLink || meetingLinks[pairKey] || "").trim();
+                                    if (!rawUrl) {
+                                      // No link yet — prompt to set link
                                       setSelectedSession({ ...session, link: "" });
                                       setShowSetLink(true);
                                       return;
                                     }
 
-                                    const sourceISO = session.startISO || new Date().toISOString();
-                                    const qs = new URLSearchParams({
-                                      id: `${normalizeCourseKey(`${session.subject} ${session.section}`)}__${sourceISO}`,
+                                    // Prefill from existing note (optional)
+                                    const { topics, next } = await ensureSessionNote({
+                                      ...session,
+                                      sessionId: session.apiId || session.id,
+                                    });
+
+                                    const popupQs = new URLSearchParams({
+                                      id: session.apiId || session.id, // real ObjectId
                                       subject: session.subject,
                                       section: session.section,
                                       topic: session.topic || "",
-                                      studentName: session.students.join(", "),
-                                      dateTimeISO: sourceISO,
+                                      studentNames: (session.students || []).join(", "),
+                                      startISO: session.startISO || "",
+                                      endISO: session.endISO || "",
+                                      mentorName: session.mentor || "",
+                                      initialTopicsDiscussed: topics,
+                                      initialNextSteps: next,
+                                      hideBack: "1",
                                     }).toString();
 
                                     const notesWin = window.open(
-                                      `/session-notes-popup?${qs}`,
+                                      `/session-notes-popup?${popupQs}`,
                                       "MentEaseNotes",
                                       "width=560,height=640,left=100,top=100"
                                     );
@@ -1098,87 +1283,118 @@ export default function MentorMySchedule() {
                                       showToast("Please allow pop-ups to open the Session Notes window.", "error");
                                       return;
                                     }
-                                    window.location.assign(ensureHttp(url));
+
+                                    window.location.assign(ensureHttp(rawUrl));
                                   }}
                                 >
-                                  JOIN NOW
+                                  <span className="join-btn__label">JOIN NOW</span>
+
+                                  {/* Tooltip bubble when not live */}
+                                  {!canJoin && (
+                                    <span className="status-tip" role="tooltip" aria-hidden="true">
+                                      <strong className="status-tip__title">When can I join?</strong>
+                                      <span className="status-tip__body">
+                                        {(() => {
+                                          const hasTimes =
+                                            Number.isFinite(session._startTs) && Number.isFinite(session._endTs);
+                                          if (!hasTimes) return "Schedule time missing.";
+                                          let msg = `Available only ${formatDateTimeRange(session.startISO, session.endISO)}`;
+                                          if (nowTs < session._startTs) msg += ` • Starts in ${humanizeMs(session._startTs - nowTs)}`;
+                                          else if (nowTs >= session._endTs) msg += " • Ended";
+                                          return msg;
+                                        })()}
+                                      </span>
+                                    </span>
+                                  )}
                                 </button>
 
-                                {/* Per-card More options — with guardrails */}
-                                <div className="ms-more-options" ref={(el) => (menuRefs.current[i] = el)}>
-                                  <button
-                                    className="ms-more-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setOpenMenuIndex(openMenuIndex === i ? null : i);
-                                    }}
-                                    aria-haspopup="menu"
-                                    aria-expanded={openMenuIndex === i}
-                                  >
-                                    More Options
-                                  </button>
-                                  <div className={`ms-menu-dropdown ${openMenuIndex === i ? "show" : ""}`} role="menu">
+                                {session.canEdit && (
+                                  <div className="ms-more-options" ref={(el) => (menuRefs.current[i] = el)}>
                                     <button
-                                      role="menuitem"
+                                      className="ms-more-btn"
                                       onClick={(e) => {
                                         e.stopPropagation();
-
-                                        if ((session.status || "").toLowerCase() === "rescheduled") {
-                                          showToast("Rescheduling can only be done once.", "error");
-                                          setOpenMenuIndex(null);
-                                          return;
-                                        }
-
-                                        const msUntil =
-                                          (typeof session._startTs === "number" ? session._startTs : NaN) - Date.now();
-                                        if (!Number.isFinite(msUntil) || msUntil < 24 * 60 * 60 * 1000) {
-                                          showToast("Rescheduling is allowed up to 24 hours before the session.", "error");
-                                          setOpenMenuIndex(null);
-                                          return;
-                                        }
-
-                                        setSelectedSession(session);
-                                        setShowResched(true);
-                                        setOpenMenuIndex(null);
+                                        setOpenMenuIndex(openMenuIndex === i ? null : i);
                                       }}
+                                      aria-haspopup="menu"
+                                      aria-expanded={openMenuIndex === i}
                                     >
-                                      Reschedule
+                                      More Options
                                     </button>
-                                    <button
-                                      role="menuitem"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
+                                    <div className={`ms-menu-dropdown ${openMenuIndex === i ? "show" : ""}`} role="menu">
+                                      <button
+                                        role="menuitem"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
 
-                                        if ((session.status || "").toLowerCase() === "cancelled") {
-                                          showToast("This session is already cancelled.", "error");
+                                          if (!session.apiId) {
+                                            showToast("This session can't be modified (missing server id).", "error");
+                                            setOpenMenuIndex(null);
+                                            return;
+                                          }
+
+                                          if ((session.status || "").toLowerCase() === "rescheduled") {
+                                            showToast("Rescheduling can only be done once.", "error");
+                                            setOpenMenuIndex(null);
+                                            return;
+                                          }
+
+                                          const msUntil =
+                                            (typeof session._startTs === "number" ? session._startTs : NaN) - Date.now();
+                                          if (!Number.isFinite(msUntil) || msUntil < 24 * 60 * 60 * 1000) {
+                                            showToast("Rescheduling is allowed up to 24 hours before the session.", "error");
+                                            setOpenMenuIndex(null);
+                                            return;
+                                          }
+
+                                          setSelectedSession(session);
+                                          setShowResched(true);
                                           setOpenMenuIndex(null);
-                                          return;
-                                        }
+                                        }}
+                                      >
+                                        Reschedule
+                                      </button>
+                                      <button
+                                        role="menuitem"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
 
-                                        const msUntil =
-                                          (typeof session._startTs === "number" ? session._startTs : NaN) - Date.now();
-                                        if (!Number.isFinite(msUntil) || msUntil < 24 * 60 * 60 * 1000) {
-                                          showToast(
-                                            "Cancellations must be made at least 24 hours prior to the scheduled session.",
-                                            "error"
-                                          );
+                                          if (!session.apiId) {
+                                            showToast("This session can't be modified (missing server id).", "error");
+                                            setOpenMenuIndex(null);
+                                            return;
+                                          }
+
+                                          if ((session.status || "").toLowerCase() === "cancelled") {
+                                            showToast("This session is already cancelled.", "error");
+                                            setOpenMenuIndex(null);
+                                            return;
+                                          }
+
+                                          const msUntil =
+                                            (typeof session._startTs === "number" ? session._startTs : NaN) - Date.now();
+                                          if (!Number.isFinite(msUntil) || msUntil < 24 * 60 * 60 * 1000) {
+                                            showToast(
+                                              "Cancellations must be made at least 24 hours prior to the scheduled session.",
+                                              "error"
+                                            );
+                                            setOpenMenuIndex(null);
+                                            return;
+                                          }
+
+                                          setSelectedSession(session);
+                                          setShowCancel(true);
                                           setOpenMenuIndex(null);
-                                          return;
-                                        }
-
-                                        setSelectedSession(session);
-                                        setShowCancel(true);
-                                        setOpenMenuIndex(null);
-                                      }}
-                                    >
-                                      Cancel booking
-                                    </button>
+                                        }}
+                                      >
+                                        Cancel booking
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
+                                )}
                               </>
                             ) : (
                               <>
-                                {/* Past tab actions */}
                                 {hasRecordingLink && !isCancelled && (
                                   <button
                                     className="view-recording-btn"
@@ -1196,8 +1412,7 @@ export default function MentorMySchedule() {
                                   </button>
                                 )}
 
-                                {/* Past row more menu — hide entirely if cancelled */}
-                                {!isCancelled && (
+                                {!isCancelled && session.canEdit && (
                                   <div className="ms-more-options" ref={(el) => (menuRefs.current[i] = el)}>
                                     <button
                                       className="ms-more-btn"
@@ -1230,7 +1445,7 @@ export default function MentorMySchedule() {
                                             e.stopPropagation();
                                             setOpenMenuIndex(null);
                                             setConfirmDeleteTarget({
-                                              sessionId: session.id || session.sessionId,
+                                              sessionId: session.apiId || session.id,
                                               subject: session.subject,
                                               section: session.section,
                                             });
@@ -1257,7 +1472,6 @@ export default function MentorMySchedule() {
               {!anyLoading && list.length === 0 && <p className="empty-msg">No {activeTab} sessions.</p>}
             </div>
 
-            {/* Bottom info (range + page) */}
             {!anyLoading && fullList.length > 0 && (
               <div className="schedule-meta">
                 <span className="schedule-meta__range">
@@ -1271,7 +1485,6 @@ export default function MentorMySchedule() {
               </div>
             )}
 
-            {/* Pagination controls */}
             {!anyLoading && totalPages > 1 && (
               <div
                 style={{
@@ -1309,55 +1522,34 @@ export default function MentorMySchedule() {
                 </button>
 
                 <div style={{ display: "flex", gap: "0.25rem" }}>
-                  {[...Array(totalPages)].map((_, i) => {
-                    const pageNumber = i + 1;
-                    const isCurrentPage = pageNumber === currentPage;
-                    const showPage =
-                      pageNumber === 1 ||
-                      pageNumber === totalPages ||
-                      Math.abs(pageNumber - currentPage) <= 1;
-
-                    if (!showPage) {
-                      if (pageNumber === 2 && currentPage > 4) {
-                        return (
-                          <span key={`dots-left-${i}`} style={{ padding: "0.5rem", color: "#9ca3af" }}>
-                            ...
-                          </span>
-                        );
-                      }
-                      if (pageNumber === totalPages - 1 && currentPage < totalPages - 3) {
-                        return (
-                          <span key={`dots-right-${i}`} style={{ padding: "0.5rem", color: "#9ca3af" }}>
-                            ...
-                          </span>
-                        );
-                      }
-                      return null;
-                    }
-
-                    return (
+                  {getPaginationItems(currentPage, totalPages).map((item, idx) =>
+                    item === "..." ? (
+                      <span key={`dots-${idx}`} style={{ padding: "0.5rem", color: "#9ca3af" }}>
+                        ...
+                      </span>
+                    ) : (
                       <button
-                        key={pageNumber}
-                        onClick={() => setPage(pageNumber)}
-                        aria-current={isCurrentPage ? "page" : undefined}
+                        key={`p-${item}`}
+                        onClick={() => setPage(item)}
+                        aria-current={item === currentPage ? "page" : undefined}
                         style={{
                           padding: "0.5rem 0.75rem",
                           border: "1px solid #d1d5db",
                           borderRadius: "6px",
-                          background: isCurrentPage ? "#3b82f6" : "white",
-                          color: isCurrentPage ? "white" : "#374151",
+                          background: item === currentPage ? "#3b82f6" : "white",
+                          color: item === currentPage ? "white" : "#374151",
                           cursor: "pointer",
                           fontSize: "0.875rem",
                           fontWeight: "500",
                           minWidth: "40px",
                           transition: "all 0.2s ease",
                         }}
-                        title={`Go to page ${pageNumber}`}
+                        title={`Go to page ${item}`}
                       >
-                        {pageNumber}
+                        {item}
                       </button>
-                    );
-                  })}
+                    )
+                  )}
                 </div>
 
                 <button
@@ -1390,7 +1582,6 @@ export default function MentorMySchedule() {
         </main>
       </div>
 
-      {/* Modals */}
       {showResched && (
         <MentorRescheduleSessionModal
           isOpen={showResched}
@@ -1408,6 +1599,7 @@ export default function MentorMySchedule() {
           isOpen={showCancel}
           onClose={() => setShowCancel(false)}
           session={selectedSession}
+          viewerRole="mentor"
           onConfirm={handleCancel}
         />
       )}
@@ -1417,12 +1609,11 @@ export default function MentorMySchedule() {
           isOpen={showSetLink}
           onClose={() => setShowSetLink(false)}
           session={selectedSession}
-          onSave={handleSaveLink} // handles both save and clear
+          onSave={handleSaveLink}
           showToast={showToast}
         />
       )}
 
-      {/* Set Recording Link modal (server) */}
       {showSetRecordingLink && (
         <SetRecordingLinkModal
           isOpen={showSetRecordingLink}
@@ -1438,7 +1629,6 @@ export default function MentorMySchedule() {
         />
       )}
 
-      {/* Styled confirm dialog for recording link */}
       {showConfirmDelete && (
         <ConfirmDialog
           title="Remove recording link?"
@@ -1467,11 +1657,11 @@ export default function MentorMySchedule() {
       {showManageAvailability && (
         <MentorAvailabilityCalendar
           subjectSectionPairs={subjectSectionPairs}
+          pairToCourse={pairToCourse}
           onClose={() => setShowManageAvailability(false)}
         />
       )}
 
-      {/* Portaled toast (matches MySchedule) */}
       {toast &&
         createPortal(
           <div
@@ -1480,6 +1670,7 @@ export default function MentorMySchedule() {
             role="status"
             aria-live="polite"
             aria-atomic="true"
+            style={{ zIndex: 7000 }}
           >
             {toast.message}
           </div>,
@@ -1489,16 +1680,7 @@ export default function MentorMySchedule() {
   );
 }
 
-/* ---------- Tiny local modal for recording links (server-backed) ---------- */
-function SetRecordingLinkModal({
-  isOpen,
-  onClose,
-  subject,
-  section,
-  initialLink,
-  sessionId, // NEW
-  onSave, // (sessionId, link)
-}) {
+function SetRecordingLinkModal({ isOpen, onClose, subject, section, initialLink, sessionId, onSave }) {
   const [link, setLink] = useState(initialLink || "");
   if (!isOpen) return null;
 
@@ -1553,15 +1735,7 @@ function SetRecordingLinkModal({
   );
 }
 
-function ConfirmDialog({
-  title,
-  description,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
-  tone = "danger",
-  onConfirm,
-  onCancel,
-}) {
+function ConfirmDialog({ title, description, confirmText = "Confirm", cancelText = "Cancel", tone = "danger", onConfirm, onCancel }) {
   return (
     <div
       className="modal-overlay"

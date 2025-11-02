@@ -285,30 +285,13 @@
   color: #475569;
   font-size: 0.9rem;
   line-height: 1.6;
-  font-style: italic;
-  padding: 1rem 1.4rem 1rem 1.75rem;
+  font-style: normal;
+  padding: 1rem 1.4rem 1rem 1rem;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border-radius: 8px;
   position: relative;
   margin: 0 0 1.5rem 0;
   border-left: 4px solid var(--accent, #1d4ed8);
-}
-
-.notes-card .note-preview::before {
-  content: '"';
-  font-size: 2rem;
-  position: absolute;
-  top: -0.2rem;
-  left: 0.55rem;
-  font-family: serif;
-}
-.notes-card .note-preview::after {
-  content: '"';
-  font-size: 2rem;
-  position: absolute;
-  bottom: 0.2rem;
-  right: 0.55rem;
-  font-family: serif;
 }
 
 .notes-left {
@@ -576,4 +559,17 @@
 .mysubjects-grid .skeleton-card {
   display: grid;
   grid-template-rows: auto auto 1fr;
+}
+
+/* Reuse MySchedule "TODAY glow" on Upcoming Sessions cards */
+.card.upcoming-session.is-today {
+  box-shadow: 0 0 12px 2px rgba(152, 255, 9, 0.174),
+              0 0 24px 2px rgba(153, 255, 9, 0.25),
+              0 8px 26px rgba(30, 58, 138, 0.14);
+}
+.card.upcoming-session.is-today:hover,
+.card.upcoming-session.is-today:focus-within {
+  box-shadow: 0 0 14px 2px rgba(153, 255, 9, 0.55),
+              0 0 28px 2px rgba(153, 255, 9, 0.35),
+              0 10px 30px rgba(30, 58, 138, 0.16);
 }

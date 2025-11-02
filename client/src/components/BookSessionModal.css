@@ -457,7 +457,7 @@ select { text-align: left; text-align-last: left; -moz-text-align-last: left; }
 .booksession-modal .form-panel .row { margin-top: -1.5rem !important; }
 .booksession-modal .form-panel .control { margin-top: 0rem !important; }
 .booksession-modal .form-panel .small-note,
-.booksession-modal .form-panel .subtext { margin-top: 4px !important; }
+.booksession-modal .form-panel .subtext { margin-top: 10px !important; margin-bottom: 2rem; }
 .booksession-modal .form-panel .subtexts .subtext + .subtext { margin-top: 2px !important; }
 .booksession-modal .form-title { margin: 0 0 8px 0 !important; font-size: 1.2rem !important; font-weight: 800 !important; color: #1e3a8a !important; }
 .booksession-modal .form-panel .gap-after-type { margin-top: -10px !important; margin-bottom: 1rem !important; }
@@ -539,4 +539,15 @@ select { text-align: left; text-align-last: left; -moz-text-align-last: left; }
       padding-right: max(8px, env(safe-area-inset-right));
     }
   }
+}
+
+/* Disable press/bounce just inside this modal */
+.booksession-modal .btn,
+.booksession-modal .btn * {
+  transition: none !important;     /* no animated tween */
+  animation: none !important;       /* in case a keyframe is used */
+}
+
+.booksession-modal .btn:active {
+  transform: none !important;       /* kill scale/translate on press */
 }

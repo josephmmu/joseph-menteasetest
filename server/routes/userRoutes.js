@@ -5,6 +5,7 @@ const {
   updateUser,
   deleteUser,
   searchStudents,
+  namesByIds,
 } = require("../controllers/userController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
@@ -19,6 +20,14 @@ router.get(
   protect,
   authorize("mentor", "admin"),
   searchStudents
+);
+
+// Mentor/Admin: resolve ids -> minimal names/emails
+router.post(
+  "/names",
+  protect,
+  authorize("mentor", "admin"),
+  namesByIds
 );
 
 // @route   PUT /api/users/:id

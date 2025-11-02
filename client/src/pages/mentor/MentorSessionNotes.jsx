@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from "react";
-import "../student/SessionNotes.css"; // Reuse the same CSS
+// src/pages/mentor/MentorSessionNotes.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import "../student/SessionNotes.css";
+import "../student/MySchedule.css"; // bring in the same skeleton styles used by MySchedule
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 import MobileNav from "../../components/MobileNav";
@@ -9,11 +12,65 @@ import * as programYearUtils from "../../utils/programYear";
 
 const { getProgramFromCode, getYearFromSectionDigit, ordinal } = programYearUtils;
 
+const API =
+  (import.meta?.env?.VITE_API_BASE_URL ||
+    process.env.REACT_APP_API_URL ||
+    process.env.REACT_APP_API_BASE_URL ||
+    "http://localhost:5000"
+  ).replace(/\/+$/, "");
+
+const pick = (...cands) => {
+  for (const c of cands) {
+    if (c === null || c === undefined) continue;
+    const s = String(c).trim();
+    if (s) return s;
+  }
+  return "";
+};
+
+// ===== time range helpers (local time, same-day compression) =====
+function fmtDateMDY(d) {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const y = d.getFullYear();
+  return `${m}/${day}/${y}`;
+}
+function fmtTime12h(d) {
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, "0");
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
+function formatLocalRange(startISO, endISO) {
+  const start = startISO ? new Date(startISO) : null;
+  const end = endISO ? new Date(endISO) : null;
+  if (!start || isNaN(start.getTime())) return "—";
+  const endEff = end && !isNaN(end.getTime()) ? end : new Date(start.getTime() + 30 * 60 * 1000);
+  const sameDay =
+    start.getFullYear() === endEff.getFullYear() &&
+    start.getMonth() === endEff.getMonth() &&
+    start.getDate() === endEff.getDate();
+  if (sameDay) {
+    // e.g., November 2, 2025, 10:00 AM – 11:00 AM
+    const longDate = start.toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    return `${longDate}, ${fmtTime12h(start)} – ${fmtTime12h(endEff)}`;
+  }
+  // cross-day range
+  return `${fmtDateMDY(start)} ${fmtTime12h(start)} – ${fmtDateMDY(endEff)} ${fmtTime12h(endEff)}`;
+}
+
 export default function MentorSessionNotes() {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const [selectedFilter, setSelectedFilter] = useState("all");
-  const { getYearColor, normalizeCourseKey } = useCourseColor();
-  const { user } = useAuth(); // to pass mentorName to popup
+  const isMobile = windowWidth <= 1152;
+
+  const { getCourseColor } = useCourseColor();
+  const { user } = useAuth();
+
+  // auth header
+  const rawToken = user?.token || user?.jwt || localStorage.getItem("token") || "";
+  const normToken = useMemo(() => (rawToken?.startsWith("Bearer ") ? rawToken.slice(7) : rawToken), [rawToken]);
+  const authHeaders = useMemo(() => (normToken ? { Authorization: `Bearer ${normToken}` } : {}), [normToken]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -21,119 +78,130 @@ export default function MentorSessionNotes() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const isMobile = windowWidth <= 1152;
+  // Fetch
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
+  const [notesData, setNotesData] = useState([]);
 
-  // Date parser for strings like "July 28, 2025 - 8:46 PM"
-  const parseDateTime = (str) => {
-    try {
-      const cleaned = String(str).replace(" - ", " ");
-      const d = new Date(cleaned);
-      return isNaN(d.getTime()) ? null : d;
-    } catch {
-      return null;
-    }
-  };
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setLoading(true);
+      setFetchError("");
+      try {
+        const res = await axios.get(`${API}/api/session-notes/mine`, {
+          headers: authHeaders,
+          withCredentials: false,
+        });
+        const apiNotes = Array.isArray(res.data?.notes) ? res.data.notes : [];
+        if (!alive) return;
+        setNotesData(apiNotes);
+      } catch (err) {
+        const code = err?.response?.status || "ERR";
+        const msg = err?.response?.data?.message || err?.message || "Failed to load";
+        if (alive) setFetchError(`${code}: ${msg}`);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [API, authHeaders]);
 
-  // Subject/section accent
-  const accentVarsFor = (subject, section) => {
-    const key = normalizeCourseKey(`${subject || ""} ${section || ""}`);
-    const accent = getYearColor(key);
-    return { "--accent": accent, "--accentRing": "rgba(0,0,0,0.08)" };
-  };
+  // Normalize (use authoritative schedule start/end; never updatedAt)
+  const normalized = useMemo(() => {
+    return (notesData || []).map((n) => {
+      const rs = n.rawSession || {};
 
-  const formatStudentDisplay = (students) =>
-    !students || students.length === 0 ? "No students" : students.join(", ");
+      const subject = pick(
+        n.subject, n.subjectText,
+        rs.subject?.code, rs.subject?.name,
+        rs.courseCode, rs.courseName
+      );
 
-  const getStudentLabel = (students) =>
-    students && students.length === 1 ? "Student" : "Students";
+      const section = pick(
+        n.section, n.sectionText,
+        rs.section?.name, rs.section?.code,
+        rs.sectionName, rs.sectionCode, rs.block, rs.section
+      );
 
-  // ==== SAMPLE DATA (mentor perspective) ====
-  const sessionNotesData = [
-    {
-      id: "it115-s3103-2025-07-28-2046",
-      subject: "MO-IT115 Object-Oriented Analysis and Design",
-      section: "S3103",
-      students: ["John Dela Cruz"],
-      dateTime: "July 28, 2025 - 8:46 PM",
-      excerpt:
-        "08:46 — Recap: inconsistent actor lifelines on prior draft. Student showed improvement in understanding UML sequence diagrams...",
-      duration: "45 minutes",
-      status: "completed",
-      topic: "UML Sequence Diagrams",
-    },
-    {
-      id: "it161-a3103-2025-07-30-1530",
-      subject: "MO-IT161 Web Systems and Technology",
-      section: "A3103",
-      students: ["Maria Santos", "Isabella Garcia"],
-      dateTime: "July 30, 2025 - 3:30 PM",
-      excerpt:
-        "Covered principles of responsive web design using flex and grid. Students grasped mobile-first approach quickly...",
-      duration: "60 minutes",
-      status: "completed",
-      topic: "Responsive Web Design",
-    },
-    {
-      id: "it104-a2101-2025-08-05-1300",
-      subject: "MO-IT104 Computer Networks",
-      section: "A2101",
-      students: ["Carlos Rodriguez"],
-      dateTime: "August 5, 2025 - 1:00 PM",
-      excerpt:
-        "Reviewed IPv4 addressing and subnetting exercises. Need to work more on CIDR notation...",
-      duration: "50 minutes",
-      status: "completed",
-      topic: "IPv4 & Subnetting",
-    },
-    {
-      id: "it105-h2102-2025-08-08-1000",
-      subject: "MO-IT105 Human-Computer Interaction",
-      section: "H2102",
-      students: ["Anna Villanueva", "Sofia Chen", "James Wilson"],
-      dateTime: "August 8, 2025 - 10:00 AM",
-      excerpt:
-        "Discussed usability testing methodologies and user feedback analysis. Students showed excellent understanding of user personas...",
-      duration: "55 minutes",
-      status: "completed",
-      topic: "Usability Testing",
-    },
-    {
-      id: "it117-h3103-2025-08-10-1600",
-      subject: "MO-IT117 Data Visualization Techniques",
-      section: "H3103",
-      students: ["Miguel Torres"],
-      dateTime: "August 10, 2025 - 4:00 PM",
-      excerpt:
-        "Explored advanced chart types and interactive dashboard elements. Student created impressive D3.js visualization...",
-      duration: "70 minutes",
-      status: "completed",
-      topic: "Interactive Dashboards",
-    },
-  ];
+      const topic = pick(n.topic, rs.topic);
 
-  // Filter (by subject) + sort (newest first)
-  const subjects = [...new Set(sessionNotesData.map((n) => n.subject))];
-  const filtered = sessionNotesData.filter(
-    (n) => selectedFilter === "all" || n.subject === selectedFilter
+      // Prefer session.scheduleStart/End; then API-provided dateTimeISO/endISO
+      const dateTimeISO = pick(
+        rs.scheduleStart,
+        n.dateTimeISO,
+        rs.startISO,
+        rs.startDateTime
+      );
+
+      const endISO = pick(
+        rs.scheduleEnd,
+        n.endISO,
+        rs.endISO
+      );
+
+      // Prefer API-provided students; fallback to deriving names from participants
+      const fromApi = Array.isArray(n.students) ? n.students.filter(Boolean) : [];
+      let fallback = [];
+      const parts = rs.participants || [];
+      if (!fromApi.length && Array.isArray(parts)) {
+        fallback = parts
+          .map((p) => {
+            if (!p) return "";
+            if (typeof p === "string") return "";
+            if (p.user && (p.user.name || p.user.firstName || p.user.lastName)) {
+              return p.user.name || [p.user.firstName, p.user.lastName].filter(Boolean).join(" ");
+            }
+            return p.name || [p.firstName, p.lastName].filter(Boolean).join(" ");
+          })
+          .filter(Boolean);
+      }
+
+      return {
+        ...n,
+        subject,
+        section,
+        topic,
+        dateTimeISO: dateTimeISO || "",
+        endISO: endISO || "",
+        students: fromApi.length ? fromApi : fallback,
+      };
+    });
+  }, [notesData]);
+
+  // Filter + sort (match student page: "All")
+  const [filter, setFilter] = useState("All");
+
+  const subjects = useMemo(
+    () => Array.from(new Set(normalized.map((n) => n.subject))).filter(Boolean).sort(),
+    [normalized]
   );
+
+  const filtered = normalized.filter((n) => filter === "All" || n.subject === filter);
+
   const sortedNotes = filtered
-    .map((note) => ({ ...note, _dt: parseDateTime(note.dateTime) }))
-    .filter((note) => note._dt)
-    .sort((a, b) => b._dt - a._dt);
+    .map((note) => ({ ...note, _ts: note.dateTimeISO ? new Date(note.dateTimeISO).getTime() : NaN }))
+    .sort((a, b) => (isNaN(b._ts) ? -1 : b._ts) - (isNaN(a._ts) ? -1 : a._ts));
 
-  // === OPEN THE SAME FLOATING WINDOW (SessionNotesPopup) ===
+  // Labels
+  const formatStudentDisplay = (students) =>
+    !students || students.length === 0 ? "—" : students.join(", ");
+  const getStudentLabel = (students) => (students && students.length === 1 ? "Student" : "Students");
+
+  // Popup
   const openFloatingNote = (note) => {
-    const dt = parseDateTime(note.dateTime);
-    const safeISO = (dt ? dt : new Date()).toISOString();
-
     const qs = new URLSearchParams({
-      id: note.id,
-      subject: note.subject,
-      section: note.section,
+      id: note.sessionId || note.id,
+      subject: note.subject || "",
+      section: note.section || "",
       topic: note.topic || "",
       mentorName: user?.name || "Mentor",
-      studentName: (note.students || []).join(", "),
-      dateTimeISO: safeISO,
+      studentNames: formatStudentDisplay(note.students), // for mentor view identity block
+      // pass authoritative start/end so popup shows exact range
+      startISO: note.dateTimeISO || "",
+      endISO: note.endISO || "",
+      dateTimeISO: note.dateTimeISO || "", // backward-compat
+      hideBack: "1",
     }).toString();
 
     const win = window.open(
@@ -141,12 +209,34 @@ export default function MentorSessionNotes() {
       "MentEaseNotes",
       "width=560,height=640,left=100,top=100"
     );
-    if (win) {
-      try {
-        win.focus();
-      } catch {}
-    }
+    if (win) { try { win.focus(); } catch {} }
   };
+
+  // Skeletons — match EXACT structure/classes used by MySchedule
+  const renderSkeletons = (count = 3) => (
+    <div className="schedule-list" role="status" aria-live="polite" aria-busy="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={`skel-${i}`}
+          className="schedule-card skeleton-card"
+          aria-hidden="true"
+        >
+          <div className="year-chip-skel skeleton" />
+          <div className="schedule-info">
+            <div className="skeleton skel-line skel-date" />
+            <div className="skeleton skel-line skel-subject" />
+            <div className="skeleton skel-line skel-mentor" />
+            <div className="bottom-row">
+              <div className="skeleton skel-topic" />
+              <div className="skeleton skel-btn primary" />
+              <div className="skeleton skel-btn secondary" />
+            </div>
+          </div>
+        </div>
+      ))}
+      <span className="sr-only">Loading session notes…</span>
+    </div>
+  );
 
   return (
     <div className="page-wrapper">
@@ -160,65 +250,77 @@ export default function MentorSessionNotes() {
           <div className="section">
             <div className="header-row">
               <h2>Session Notes</h2>
+
               <select
                 className="filter-dropdown"
-                value={selectedFilter}
-                onChange={(e) => setSelectedFilter(e.target.value)}
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                disabled={loading}
               >
-                <option value="all">All</option>
-                {subjects.map((subject) => (
-                  <option key={subject} value={subject}>
-                    {subject}
+                <option value="All">All</option>
+                {subjects.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="schedule-list">
-              {sortedNotes.map((note) => {
-                const vars = accentVarsFor(note.subject, note.section);
-                const program = getProgramFromCode(note.subject, normalizeCourseKey);
-                const yrNum = getYearFromSectionDigit(note.section);
-                const chipLabel = `${yrNum ? `${ordinal(yrNum)} Year` : "Year N/A"} — ${program}`;
+            {fetchError && !loading && (
+              <div className="inline-error" style={{ marginBottom: 12, color: "#b91c1c" }}>
+                {fetchError}
+              </div>
+            )}
 
-                return (
-                  <div className="schedule-card is-colored" key={note.id} style={vars}>
-                    <div className="year-chip" style={{ "--chip-bg": vars["--accent"] }} aria-hidden="true">
-                      {chipLabel}
-                    </div>
+            {loading ? (
+              renderSkeletons(3)
+            ) : (
+              <div className="schedule-list">
+                {sortedNotes.map((note) => {
+                  const accent = getCourseColor(note.subject || note.section);
+                  const whenRange = formatLocalRange(note.dateTimeISO, note.endISO);
 
-                    <div className="schedule-info">
-                      <p className="date">{note.dateTime}</p>
-                      <p className="subject">
-                        {note.subject} - {note.section}
-                      </p>
-                      <p className="mentor">
-                        {getStudentLabel(note.students)}: {formatStudentDisplay(note.students)}
-                      </p>
+                  return (
+                    <div className="schedule-card is-colored" key={note.id} style={{ "--accent": accent }}>
+                      <div className="year-chip" aria-hidden="true">
+                        {(() => {
+                          const program = getProgramFromCode(note.subject);
+                          const yrNum = getYearFromSectionDigit(note.section);
+                          return `${yrNum ? `${ordinal(yrNum)} Year` : "Year N/A"} — ${program}`;
+                        })()}
+                      </div>
 
-                      <div className="bottom-row">
-                        <div className="session-notes-preview">
-                          {(note.excerpt || "").slice(0, 100)}...
+                      <div className="schedule-info">
+                        <p className="datetime">{whenRange}</p>
+                        <p className="card-subject-title">
+                          {note.subject || "—"} {note.section ? `- ${note.section}` : ""}
+                        </p>
+
+                        <p className="mentor">
+                          {getStudentLabel(note.students)}: {formatStudentDisplay(note.students)}
+                        </p>
+
+                        <div className="bottom-row">
+                          <div className="session-notes-preview">
+                            <strong>Topic:</strong> {note.topic?.trim() || "—"}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="view-full-notes-btn"
+                            onClick={() => openFloatingNote(note)}
+                          >
+                            View Session Notes
+                          </button>
                         </div>
-
-                        {/* Open floating notes window instead of routing */}
-                        <button
-                          type="button"
-                          className="view-full-notes-btn"
-                          onClick={() => openFloatingNote(note)}
-                        >
-                          View Session Notes
-                        </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              {sortedNotes.length === 0 && (
-                <p className="empty-msg">No session notes available.</p>
-              )}
-            </div>
+                {sortedNotes.length === 0 && <p className="empty-msg">No session notes available.</p>}
+              </div>
+            )}
           </div>
         </main>
       </div>

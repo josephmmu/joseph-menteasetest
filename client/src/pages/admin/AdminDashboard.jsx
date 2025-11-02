@@ -3,12 +3,14 @@ import MobileNav from "../../components/MobileNav";
 import Sidebar from "../../components/Sidebar";
 import "../../components/BookSessionModal.css";
 import "./AdminDashboard.css";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useCourseColor } from "../../context/CourseColorContext";
-import { ALL_USERS, ALL_COURSES, GENERATED_SESSIONS } from "../../lib/seedData";
 
 export default function AdminDashboard() {
+  const API = process.env.REACT_APP_API_URL || "http://localhost:5001";
+
+  // Layout
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const isMobile = windowWidth <= 1152;
   const { getCourseColor, normalizeCourseKey } = useCourseColor();
@@ -59,56 +61,135 @@ export default function AdminDashboard() {
     return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
   };
 
-  // Local summary counts
+  // -----------------------------
+  // DB-backed state (no seed data)
+  // -----------------------------
+  const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState({
     users: null,
     courses: null,
-    sessions: null,
     usersByRole: null,
     coursesByProgram: null,
-    sessionsByProgram: null,
   });
+  const [error, setError] = useState("");
 
-  const refreshCounts = () => {
-    try {
-      const users = ALL_USERS.length;
-      const courses = ALL_COURSES.length;
-      const sessions = GENERATED_SESSIONS.length;
-
-      const usersByRole = ALL_USERS.reduce((acc, u) => {
-        const r = u.role || "unknown";
-        acc[r] = (acc[r] || 0) + 1;
-        return acc;
-      }, {});
-
-      const coursesByProgram = ALL_COURSES.reduce((acc, c) => {
-        const p = c.program || "Unknown";
-        acc[p] = (acc[p] || 0) + 1;
-        return acc;
-      }, {});
-
-      const sessionsByProgram = GENERATED_SESSIONS.reduce((acc, s) => {
-        const p = s.program || "Unknown";
-        acc[p] = (acc[p] || 0) + 1;
-        return acc;
-      }, {});
-
-      setCounts({
-        users,
-        courses,
-        sessions,
-        usersByRole,
-        coursesByProgram,
-        sessionsByProgram,
-      });
-    } catch {
-      setCounts({ users: null, courses: null, sessions: null });
-    }
+  // Helpers to normalize server data
+  const getUserRole = (u) => {
+    // try nested role ref first, then fallbacks you’ve used elsewhere
+    return (
+      u?.roleId?.roleName ||
+      u?.roleName ||
+      u?.role ||
+      "" // unknown becomes ""
+    );
   };
 
+  const getCourseProgramLabel = (c) => {
+    // robustly pull a short label from program field in different shapes
+    const p = c?.program;
+    if (!p) return "Unknown";
+    if (typeof p === "string") return p;
+    // object forms
+    return p.code || p.name || p.title || p.short || "Unknown";
+  };
+
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Not authenticated.");
+        setCounts({
+          users: 0,
+          courses: 0,
+          usersByRole: {},
+          coursesByProgram: {},
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Fetch in parallel
+      const [usersRes, coursesRes] = await Promise.all([
+        fetch(`${API}/api/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API}/api/courses`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      if (!usersRes.ok) {
+        const err = await usersRes.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to fetch users");
+      }
+      if (!coursesRes.ok) {
+        const err = await coursesRes.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to fetch courses");
+      }
+
+      const users = await usersRes.json();
+      const courses = await coursesRes.json();
+
+      // Compute totals and breakdowns
+      const usersTotal = Array.isArray(users) ? users.length : 0;
+      const usersByRole = (Array.isArray(users) ? users : []).reduce((acc, u) => {
+        const role = getUserRole(u) || "unknown";
+        acc[role] = (acc[role] || 0) + 1;
+        return acc;
+      }, {});
+
+      const coursesTotal = Array.isArray(courses) ? courses.length : 0;
+      const coursesByProgram = (Array.isArray(courses) ? courses : []).reduce(
+        (acc, c) => {
+          const prog = getCourseProgramLabel(c) || "Unknown";
+          acc[prog] = (acc[prog] || 0) + 1;
+          return acc;
+        },
+        {}
+      );
+
+      setCounts({
+        users: usersTotal,
+        courses: coursesTotal,
+        usersByRole,
+        coursesByProgram,
+      });
+    } catch (e) {
+      console.error("Dashboard fetch error:", e);
+      setError(e.message || "Failed to load dashboard data");
+      setCounts({
+        users: null,
+        courses: null,
+        usersByRole: null,
+        coursesByProgram: null,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [API]);
+
   useEffect(() => {
-    refreshCounts();
-  }, []);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Re-fetch on window focus (handy after admin changes)
+  useEffect(() => {
+    const onFocus = () => fetchDashboardData();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchDashboardData]);
+
+  // Derived flags
+  const hasUsersByRole = useMemo(
+    () => counts.usersByRole && Object.keys(counts.usersByRole).length > 0,
+    [counts.usersByRole]
+  );
+  const hasCoursesByProgram = useMemo(
+    () => counts.coursesByProgram && Object.keys(counts.coursesByProgram).length > 0,
+    [counts.coursesByProgram]
+  );
 
   return (
     <div className="page-wrapper admin-user-control">
@@ -122,9 +203,24 @@ export default function AdminDashboard() {
           <div className="section">
             <h2>Admin Dashboard</h2>
             <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
-              Welcome to the admin dashboard. Get an overview of users, courses,
-              and sessions across the system.
+              Welcome to the admin dashboard. Get an overview of users and courses across the system.
             </p>
+
+            {/* Optional inline error */}
+            {error && (
+              <div
+                style={{
+                  background: "#FEF2F2",
+                  color: "#991B1B",
+                  border: "1px solid #FCA5A5",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "8px",
+                  marginBottom: "1rem",
+                }}
+              >
+                {error}
+              </div>
+            )}
 
             {/* System Statistics */}
             <div className="user-stats-section" style={{ marginTop: "0.5rem" }}>
@@ -155,7 +251,9 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="stat-content">
-                    <div className="stat-number">{counts.users ?? "—"}</div>
+                    <div className="stat-number">
+                      {loading ? "…" : counts.users ?? "—"}
+                    </div>
                     <div className="stat-label">Total Users</div>
                   </div>
                 </div>
@@ -184,42 +282,18 @@ export default function AdminDashboard() {
                     </svg>
                   </div>
                   <div className="stat-content">
-                    <div className="stat-number">{counts.courses ?? "—"}</div>
+                    <div className="stat-number">
+                      {loading ? "…" : counts.courses ?? "—"}
+                    </div>
                     <div className="stat-label">Total Courses</div>
                   </div>
                 </div>
 
-                <div
-                  className="stat-card mentors"
-                  style={{ borderLeft: "4px solid #10b981" }}
-                >
-                  <div
-                    className="stat-icon"
-                    style={{
-                      color: "#10b981",
-                      background: "rgba(16,185,129,0.12)",
-                    }}
-                  >
-                    <svg
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <div className="stat-number">{counts.sessions ?? "—"}</div>
-                    <div className="stat-label">Total Sessions</div>
-                  </div>
-                </div>
+                {/* (Total Sessions removed per your request) */}
               </div>
             </div>
 
-            {/* System Breakdown (improved cards) */}
+            {/* System Breakdown */}
             <div className="breakdown-section" style={{ marginTop: "1.5rem" }}>
               <h3
                 style={{
@@ -240,12 +314,16 @@ export default function AdminDashboard() {
                       <div className="breakdown-title">Users by Role</div>
                     </div>
                     <div className="head-right">
-                      <span className="chip">Total: {counts.users ?? "—"}</span>
+                      <span className="chip">
+                        Total: {loading ? "…" : counts.users ?? "—"}
+                      </span>
                     </div>
                   </div>
 
                   <div className="breakdown-items">
-                    {counts.usersByRole ? (
+                    {loading ? (
+                      <div className="muted">Loading…</div>
+                    ) : hasUsersByRole ? (
                       Object.entries(counts.usersByRole)
                         .sort((a, b) => b[1] - a[1])
                         .map(([role, n]) => {
@@ -287,7 +365,9 @@ export default function AdminDashboard() {
                     <div className="head-right">
                       <span className="chip">
                         Total:{" "}
-                        {counts.coursesByProgram
+                        {loading
+                          ? "…"
+                          : counts.coursesByProgram
                           ? Object.values(counts.coursesByProgram).reduce(
                               (a, b) => a + b,
                               0
@@ -298,7 +378,9 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="breakdown-items">
-                    {counts.coursesByProgram ? (
+                    {loading ? (
+                      <div className="muted">Loading…</div>
+                    ) : hasCoursesByProgram ? (
                       Object.entries(counts.coursesByProgram)
                         .sort((a, b) => b[1] - a[1])
                         .map(([prog, n]) => {
@@ -330,58 +412,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Sessions by Program */}
-                <div className="breakdown-card breakdown-accent-green">
-                  <div className="breakdown-head">
-                    <div className="head-left">
-                      <div className="head-dot" />
-                      <div className="breakdown-title">Sessions by Program</div>
-                    </div>
-                    <div className="head-right">
-                      <span className="chip">
-                        Total:{" "}
-                        {counts.sessionsByProgram
-                          ? Object.values(counts.sessionsByProgram).reduce(
-                              (a, b) => a + b,
-                              0
-                            )
-                          : "—"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="breakdown-items">
-                    {counts.sessionsByProgram ? (
-                      Object.entries(counts.sessionsByProgram)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([prog, n]) => {
-                          const total = Object.values(
-                            counts.sessionsByProgram
-                          ).reduce((a, b) => a + b, 0);
-                          const pct = total ? Math.round((n / total) * 100) : 0;
-                          return (
-                            <div key={prog} className="breakdown-item">
-                              <div className="breakdown-meta">
-                                <div className="breakdown-key">{prog}</div>
-                                <div className="breakdown-val">
-                                  {n}
-                                  <span className="pct">{pct}%</span>
-                                </div>
-                              </div>
-                              <div className="progress">
-                                <div
-                                  className="progress-bar"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })
-                    ) : (
-                      <div className="muted">—</div>
-                    )}
-                  </div>
-                </div>
+                {/* (Sessions by Program card removed) */}
               </div>
             </div>
 
@@ -432,21 +463,7 @@ export default function AdminDashboard() {
                   </div>
                 </Link>
 
-                <Link
-                  to="/admin/analytics"
-                  className="control-card"
-                  style={cardVars()}
-                >
-                  <div className="control-card-inner">
-                    <div className="control-icon">📈</div>
-                    <div className="control-title">Session Analytics</div>
-                    <div className="control-desc">
-                      View session trends, program breakdowns, and status
-                      distributions.
-                    </div>
-                    <div className="control-cta">Open</div>
-                  </div>
-                </Link>
+                {/* (Session Analytics shortcut removed) */}
               </div>
             </div>
           </div>

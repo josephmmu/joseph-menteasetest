@@ -336,7 +336,7 @@
 /* Scoped Toast ONLY for ViewStudentsModal */
 .toast.vsm {
   position: fixed;
-  top: 5rem;              /* slightly below top edge */
+  top: 5rem; /* slightly below top edge */
   left: 50%;
   transform: translateX(-50%);
   padding: 0.75rem 1.5rem;
@@ -344,10 +344,10 @@
   font-size: 1.05rem;
   font-weight: 500;
   border: 1px solid transparent;
-  z-index: 10050;         /* above your modal overlay (3000) */
+  z-index: 10050; /* above your modal overlay (3000) */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   animation: vsmToastFade 3s ease-in-out;
-  pointer-events: none;   /* don't block clicks */
+  pointer-events: none; /* don't block clicks */
 }
 
 /* Variants (match your app palette) */
@@ -369,8 +369,17 @@
 
 /* Animation */
 @keyframes vsmToastFade {
-  0%   { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
   10%,
-  90%  { opacity: 1; transform: translateX(-50%) translateY(0); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  90% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
 }
