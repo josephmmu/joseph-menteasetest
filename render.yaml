@@ -6,6 +6,28 @@ services:
     region: singapore             # pick closest to you
     dockerfilePath: ./server/Dockerfile
     autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: APP_BASE_URL
+        value: https://YOUR-CLIENT-URL.onrender.com
+      - key: EMAIL_NOTIFICATIONS_DISABLED
+        value: "false"
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        value: MentEase <no-reply@example.com>
 
   # === Frontend (static build) ===
   - type: web
@@ -14,3 +36,8 @@ services:
     region: singapore
     dockerfilePath: ./client/Dockerfile
     autoDeploy: true
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://YOUR-SERVER-URL.onrender.com
+      - key: REACT_APP_GOOGLE_CLIENT_ID
+        sync: false
