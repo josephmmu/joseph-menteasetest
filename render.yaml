@@ -13,7 +13,7 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: APP_BASE_URL
-        value: https://backend-joseph-menteasetest.onrender.com
+        value: "https://backend-joseph-menteasetest.onrender.com"
       - key: EMAIL_NOTIFICATIONS_DISABLED
         value: "false"
       - key: SMTP_HOST
@@ -23,11 +23,11 @@ services:
       - key: SMTP_SECURE
         value: "false"
       - key: SMTP_USER
-        sync: false
+        value: "menteaseph@gmail.com"
       - key: SMTP_PASS
-        sync: false
+        value: "idekncbzbkcadqse"
       - key: SMTP_FROM
-        value: MentEase <no-reply@example.com>
+        value: "MentEase <menteaseph@gmail.com>"
 
   # === Frontend (static build) ===
   - type: web
@@ -38,6 +38,6 @@ services:
     autoDeploy: true
     envVars:
       - key: REACT_APP_API_URL
-        value: https://backend-joseph-menteasetest.onrender.com
+        value: "https://backend-joseph-menteasetest.onrender.com"
       - key: REACT_APP_GOOGLE_CLIENT_ID
-        sync: false
+        value: "1018026089892-2a9bcionfg3gsk57upcfd3nll8onvrog.apps.googleusercontent.com"
