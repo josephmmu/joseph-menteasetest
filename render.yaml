@@ -13,7 +13,7 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: APP_BASE_URL
-        value: https://client-joseph-menteasetest.onrender.com
+        value: https://backend-joseph-menteasetest.onrender.com
       - key: EMAIL_NOTIFICATIONS_DISABLED
         value: "false"
       - key: SMTP_HOST
